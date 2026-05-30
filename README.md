@@ -1,25 +1,57 @@
-my_sample_package
-=========
+gamecenter
+==========
 
 
-[![image](https://github.com/renefritze/my_sample_package/workflows/pytest/badge.svg)](https://github.com/renefritze/my_sample_package/actions)
+[![image](https://github.com/renefritze/gamecenter/workflows/pytest/badge.svg)](https://github.com/renefritze/gamecenter/actions)
 
 
-A sample Python package created with cookiecutter
+A full-screen, touchscreen launcher for buzzer party games — built for a
+Raspberry Pi with a touchscreen, but also runnable in a window on a Linux
+desktop for development.
 
 
 Features
 --------
 
--   TODO
+- **Touch launcher** with a grid of bundled games and a settings subscreen.
+- **USB game-show buzzer support** via a pluggable backend layer
+  (`hidapi`, `evdev`, and a dependency-free keyboard fallback so the whole app
+  is usable with no hardware attached).
+- **Buzzer Test screen** to identify and map each physical buzzer to a player.
+- **Reaction Test** game as the initial demo: wait for green, then race to buzz.
+- Clean extension seams (a game registry + a service registry) for future
+  features such as USB webcam and Spotify integration.
 
-After generating your project
------------------------------
 
-- setup branch protection+automerge in [github project settings](https://github.com/renefritze/my_sample_package/settings/branches)
-- request install for the codecov.io app in [github project settings](https://github.com/renefritze/my_sample_package/settings/installations)
-- configure codecov.io in [codecov.io settings](https://codecov.io/gh/arup-group/cookiecutter.project_slug}}/settings)
-- add the `CODECOV_TOKEN` secret in [github project settings](https://github.com/renefritze/my_sample_package/settings/secrets/actions)
+Quick start
+-----------
+
+```console
+$ pip install -e '.[dev]'         # add ',hardware' for real USB buzzers
+$ gamecenter run --windowed       # dev: windowed, keyboard buzzers (keys 1-4)
+$ gamecenter run                  # kiosk: fullscreen
+```
+
+CLI options: `--windowed`, `--backend {auto,keyboard,hidapi,evdev}`,
+`--config PATH`.
+
+On a Raspberry Pi you also need the SDL2 system libraries that Kivy depends on
+(`libsdl2`, `libsdl2-image`, `libsdl2-mixer`, `libsdl2-ttf`); see the Kivy
+installation docs for your OS image.
+
+
+Architecture
+------------
+
+- `gamecenter.core` / `config` / `input` — pure, Kivy-free logic (the
+  headless-testable core: buzzer events, the buzzer manager, config, scoring).
+- `gamecenter.ui` — the Kivy app shell, screens and widgets.
+- `gamecenter.games` — bundled games; each implements a common `Game` interface
+  and is discovered by the launcher's registry.
+
+Kivy is never imported at package import time, so the test suite runs headless.
+Run `pytest` for the core suite; run the display-backed smoke tests with
+`xvfb-run -a pytest -m gui`.
 
 
 Credits

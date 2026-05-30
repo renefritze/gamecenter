@@ -4,7 +4,7 @@
 # You can set these variables from the command line.
 SPHINXOPTS    = -W --keep-going
 SPHINXBUILD   = python -m sphinx
-SPHINXPROJ    = my_sample_package
+SPHINXPROJ    = gamecenter
 SOURCEDIR     = .
 BUILDDIR      = _build
 

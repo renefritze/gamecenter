@@ -1,4 +1,4 @@
-# Welcome to my_sample_package's documentation!
+# Welcome to gamecenter's documentation!
 
 ```{toctree}
 :maxdepth: 2

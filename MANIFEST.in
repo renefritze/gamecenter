@@ -10,4 +10,4 @@ recursive-exclude * *.py[co]
 recursive-include docs *.rst conf.py Makefile make.bat *.jpg *.png *.gif
 include versioneer.py
 include dependencies.py
-include src/my_sample_package/_version.py
+include src/gamecenter/_version.py
