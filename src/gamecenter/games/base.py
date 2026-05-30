@@ -6,8 +6,7 @@ only implements :meth:`build_widget` and :meth:`on_buzzer_event`. Kivy-free.
 
 from __future__ import annotations
 
-from abc import abstractmethod
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
 from gamecenter.core.game_api import Game
 
@@ -41,7 +40,3 @@ class BaseGame(Game):
 
     def on_buzzer_event(self, event: BuzzerEvent) -> None:
         """Handle a buzzer event. Override in subclasses; default is a no-op."""
-
-    @abstractmethod
-    def build_widget(self, context: GameContext) -> Any:  # noqa: ANN401
-        """Build the game's root widget. Must be implemented by subclasses."""
