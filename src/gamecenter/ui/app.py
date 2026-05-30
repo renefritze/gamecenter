@@ -29,6 +29,7 @@ from gamecenter.ui.screens.settings import SettingsScreen
 if TYPE_CHECKING:
     from pathlib import Path
 
+    from gamecenter.config.models import AppConfig
     from gamecenter.core.game_api import Game
 
 logger = logging.getLogger(__name__)
@@ -136,14 +137,15 @@ class GameCenterApp(App):
         except Exception:
             logger.exception("Failed to switch to backend %s; keeping current", name)
             return
-        self.settings.update(replace(config, buzzers=replace(config.buzzers, backend=name)))
+        updated: AppConfig = replace(config, buzzers=replace(config.buzzers, backend=name))
+        self.settings.update(updated)
 
     def set_fullscreen(self, *, enabled: bool) -> None:
         """Persist and apply the fullscreen setting."""
         from dataclasses import replace
 
-        config = self.settings.config
-        self.settings.update(replace(config, fullscreen=enabled))
+        updated: AppConfig = replace(self.settings.config, fullscreen=enabled)
+        self.settings.update(updated)
         Window.fullscreen = "auto" if enabled else False
 
 
@@ -155,7 +157,8 @@ def run_app(*, windowed: bool = False, backend_override: str | None = None, conf
         from dataclasses import replace
 
         config = settings.config
-        settings.update(replace(config, buzzers=replace(config.buzzers, backend=backend_override)))
+        updated: AppConfig = replace(config, buzzers=replace(config.buzzers, backend=backend_override))
+        settings.update(updated)
 
     buzzers = BuzzerManager(
         settings.config.buzzers,

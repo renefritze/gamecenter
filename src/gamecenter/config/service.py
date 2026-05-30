@@ -150,5 +150,5 @@ class SettingsService:
             self._observers.remove(observer)
 
     def _notify(self) -> None:
-        for observer in list(self._observers):
+        for observer in self._observers:
             observer(self._config)

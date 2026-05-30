@@ -58,8 +58,8 @@ class Game(ABC):
     meta: ClassVar[GameMeta]
 
     @abstractmethod
-    def build_widget(self, context: GameContext) -> Any:  # noqa: ANN401 - Kivy Widget, kept untyped here
-        """Build and return the game's root Kivy widget."""
+    def build_widget(self, context: GameContext) -> Any:  # noqa: ANN401
+        """Build and return the game's root Kivy widget (untyped ``Any`` in the core)."""
 
     @abstractmethod
     def start(self, context: GameContext) -> None:

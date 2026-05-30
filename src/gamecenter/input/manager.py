@@ -95,7 +95,7 @@ class BuzzerManager:
         self._dispatch(lambda: self._fan_out(event))
 
     def _fan_out(self, event: BuzzerEvent) -> None:
-        for subscriber in list(self._subscribers):
+        for subscriber in self._subscribers:
             self._notify_one(subscriber, event)
 
     @staticmethod
