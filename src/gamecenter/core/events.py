@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import Enum
+from typing import Any
 
 
 class ButtonKind(str, Enum):
@@ -36,7 +37,7 @@ class BuzzerEvent:
     buzzer_index: int
     button: ButtonKind
     timestamp: float
-    raw: dict | None = field(default=None, compare=False)
+    raw: dict[str, Any] | None = field(default=None, compare=False)
 
     @property
     def key(self) -> tuple[str, int]:
