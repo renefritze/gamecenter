@@ -1,0 +1,11 @@
+{
+    "__comment__": "https://github.com/tcort/markdown-link-check#config-file-format",
+    "ignorePatterns": [
+        {
+            "pattern": "cookiecutter.repository_url"
+        },
+        {
+            "pattern": "^https://github.com/arup-group"
+        }
+    ]
+}
