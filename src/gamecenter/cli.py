@@ -14,6 +14,9 @@ import typer
 app = typer.Typer(help="Gamecenter: a touchscreen launcher for buzzer party games.")
 
 _BACKENDS = "auto, keyboard, hidapi, evdev"
+# Precomputed so the f-string stays out of the function signature default below;
+# an f-string default trips sphinx-autoapi's signature parser (JoinedStr).
+_BACKEND_HELP = f"Override the buzzer backend ({_BACKENDS})."
 
 
 @app.callback()
@@ -32,7 +35,7 @@ def run(
     backend: Optional[str] = typer.Option(  # noqa: UP045
         None,
         "--backend",
-        help=f"Override the buzzer backend ({_BACKENDS}).",
+        help=_BACKEND_HELP,
     ),
     config: Optional[Path] = typer.Option(  # noqa: UP045
         None,
