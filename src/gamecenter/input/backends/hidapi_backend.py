@@ -88,7 +88,8 @@ class HidApiBackend(BuzzerBackend):
             thread.join(timeout=1.0)
         self._thread = None
 
-    def _open(self):  # noqa: ANN202 - hid.device is an external untyped handle
+    # Returns an external, untyped hid.device handle (or None).
+    def _open(self):  # noqa: ANN202
         import hid
 
         device = hid.device()

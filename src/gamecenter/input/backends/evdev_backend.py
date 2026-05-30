@@ -42,7 +42,8 @@ class EvdevBackend(BuzzerBackend):
     def is_available(cls) -> bool:
         return sys.platform.startswith("linux") and importlib.util.find_spec("evdev") is not None
 
-    def _devices(self):  # noqa: ANN202 - evdev devices are external untyped handles
+    # Returns external, untyped evdev InputDevice handles.
+    def _devices(self):  # noqa: ANN202
         import evdev
 
         return [evdev.InputDevice(path) for path in evdev.list_devices()]
@@ -82,25 +83,25 @@ class EvdevBackend(BuzzerBackend):
         if not devices:
             logger.warning("No evdev input devices found")
             return
-        selector = selectors.DefaultSelector()
-        for index, device in enumerate(devices):
-            selector.register(device, selectors.EVENT_READ, (index, device))
         try:
-            while not self._stop.is_set():
-                for key, _ in selector.select(timeout=0.2):
-                    index, device = key.data
-                    for raw in device.read():
-                        timestamp = time.monotonic()
-                        if raw.type == evdev.ecodes.EV_KEY and raw.value == _KEY_DOWN:
-                            self._emit(
-                                BuzzerEvent(
-                                    device_id=device.path,
-                                    buzzer_index=index,
-                                    button=ButtonKind.BUZZ,
-                                    timestamp=timestamp,
-                                    raw={"code": raw.code},
-                                ),
-                            )
+            with selectors.DefaultSelector() as selector:
+                for index, device in enumerate(devices):
+                    selector.register(device, selectors.EVENT_READ, (index, device))
+                while not self._stop.is_set():
+                    for key, _ in selector.select(timeout=0.2):
+                        index, device = key.data
+                        for raw in device.read():
+                            timestamp = time.monotonic()
+                            if raw.type == evdev.ecodes.EV_KEY and raw.value == _KEY_DOWN:
+                                self._emit(
+                                    BuzzerEvent(
+                                        device_id=device.path,
+                                        buzzer_index=index,
+                                        button=ButtonKind.BUZZ,
+                                        timestamp=timestamp,
+                                        raw={"code": raw.code},
+                                    ),
+                                )
         finally:
             for device in devices:
                 device.close()
