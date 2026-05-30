@@ -9,7 +9,7 @@ if "%SPHINXBUILD%" == "" (
 )
 set SOURCEDIR=.
 set BUILDDIR=_build
-set SPHINXPROJ=my_sample_package
+set SPHINXPROJ=gamecenter
 
 if "%1" == "" goto help
 

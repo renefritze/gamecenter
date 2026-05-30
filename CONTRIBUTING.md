@@ -13,7 +13,7 @@ You can contribute in many ways:
 
 ### Report Bugs
 
-Report bugs at <https://github.com/renefritze/my_sample_package/issues>.
+Report bugs at <https://github.com/renefritze/gamecenter/issues>.
 
 If you are reporting a bug, please include:
 
@@ -33,13 +33,13 @@ and "help wanted" is open to whoever wants to implement it.
 
 ### Write Documentation
 
-my_sample_package could always use more documentation, whether as part of the
-official my_sample_package docs, in docstrings, or even on the web in blog posts,
+gamecenter could always use more documentation, whether as part of the
+official gamecenter docs, in docstrings, or even on the web in blog posts,
 articles, and such.
 
 ### Submit Feedback
 
-The best way to send feedback is to file an issue at <https://github.com/renefritze/my_sample_package/issues>.
+The best way to send feedback is to file an issue at <https://github.com/renefritze/gamecenter/issues>.
 
 If you are proposing a feature:
 
@@ -50,18 +50,18 @@ If you are proposing a feature:
 
 ## Get Started!
 
-Ready to contribute? Here's how to set up {}`my_sample_package` for local development.
+Ready to contribute? Here's how to set up {}`gamecenter` for local development.
 
-1. Fork the {}`my_sample_package` repo on GitHub.
+1. Fork the {}`gamecenter` repo on GitHub.
 2. Clone your fork locally:
 
    ```
-   $ git clone https://github.com/renefritze/my_sample_package
+   $ git clone https://github.com/renefritze/gamecenter
    ```
 3. Install your local copy into a virtualenv:
 
    ```
-   $ cd my_sample_package/
+   $ cd gamecenter/
    $ python3 -m venv venv
    $ source venv/bin/activate
    $ python3 -m pip instlal .[dev]
@@ -104,7 +104,7 @@ Before you submit a pull request, check that it meets these guidelines:
 To run a subset of tests:
 
 ```
-$ pytest tests.test_my_sample_package
+$ pytest tests.test_gamecenter
 ```
 
 ## Deploying

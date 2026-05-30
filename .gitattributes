@@ -1,4 +1,4 @@
-src/my_sample_package/_version.py export-subst
+src/gamecenter/_version.py export-subst
 # Pickle files (for testing) should always have UNIX line endings.
 *.pickle text eol=lf
 * text eol=lf

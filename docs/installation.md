@@ -6,15 +6,15 @@
 
 ## Stable release
 
-To install my_sample_package, run this command in your terminal:
+To install gamecenter, run this command in your terminal:
 
 ```{code-block} console
 
-$ pip install my_sample_package
+$ pip install gamecenter
 
 ```
 
-This is the preferred method to install my_sample_package, as it will always install the most recent stable release.
+This is the preferred method to install gamecenter, as it will always install the most recent stable release.
 
 If you don't have [pip][pip] installed, this [Python installation guide][python installation guide] can guide
 you through the process.
@@ -25,13 +25,13 @@ you through the process.
 
 ## From sources
 
-The sources for my_sample_package can be downloaded from the [Github repo][github repo].
+The sources for gamecenter can be downloaded from the [Github repo][github repo].
 
 You can either clone the public repository:
 
 ```{code-block} console
 
-$ git clone https://github.com/renefritze/my_sample_package.git
+$ git clone https://github.com/renefritze/gamecenter.git
 
 ```
 
@@ -39,7 +39,7 @@ Or download the [tarball][tarball]:
 
 ```{code-block} console
 
-$ curl -OJL https://github.com/renefritze/my_sample_package/tarball/main
+$ curl -OJL https://github.com/renefritze/gamecenter/tarball/main
 
 ```
 
@@ -51,6 +51,6 @@ $ pip install .
 
 ```
 
-[github repo]: https://github.com/renefritze/my_sample_package
+[github repo]: https://github.com/renefritze/gamecenter
 
-[tarball]: https://github.com/renefritze/my_sample_package/tarball/main
+[tarball]: https://github.com/renefritze/gamecenter/tarball/main

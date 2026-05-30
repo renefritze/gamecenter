@@ -1,1 +1,1 @@
-"""Unit test package for my_sample_package."""
+"""Unit test package for gamecenter."""

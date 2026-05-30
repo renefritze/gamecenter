@@ -24,6 +24,6 @@ We'll start by importing our module.
 
 ```{code-cell}
 
-import my_sample_package
-my_sample_package.__version__
+import gamecenter
+gamecenter.__version__
 ```
