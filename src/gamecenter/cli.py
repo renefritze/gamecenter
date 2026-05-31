@@ -7,7 +7,6 @@ is imported lazily inside the command so the package and tests stay headless.
 from __future__ import annotations
 
 from pathlib import Path  # noqa: TC003 - typer needs the runtime annotation
-from typing import Optional
 
 import typer
 
@@ -32,12 +31,12 @@ def run(
         "--windowed",
         help="Run in a window (dev) instead of fullscreen kiosk mode.",
     ),
-    backend: Optional[str] = typer.Option(  # noqa: UP045
+    backend: str | None = typer.Option(
         None,
         "--backend",
         help=_BACKEND_HELP,
     ),
-    config: Optional[Path] = typer.Option(  # noqa: UP045
+    config: Path | None = typer.Option(
         None,
         "--config",
         help="Use an alternate config file instead of the default location.",

@@ -11,6 +11,8 @@ try:
     from . import _version
 
     __version__ = _version.__version__
-except ImportError as e:  # pragma: no cover - only before a build
-    print(f"version file could not be imported: {e}")  # noqa: T201
+except ImportError:  # pragma: no cover - only before a build
+    import warnings
+
+    warnings.warn("version file not found; package may not be installed correctly", stacklevel=2)
     __version__ = "unknown"
