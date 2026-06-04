@@ -5,12 +5,12 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from kivy.uix.boxlayout import BoxLayout
-from kivy.uix.button import Button
 from kivy.uix.gridlayout import GridLayout
 from kivy.uix.label import Label
 from kivy.uix.screenmanager import Screen
 
-from gamecenter.ui import ScreenName
+from gamecenter.ui import ScreenName, theme
+from gamecenter.ui.theme import Panel, StyledButton
 from gamecenter.ui.widgets.tile import GameTile
 
 if TYPE_CHECKING:
@@ -25,9 +25,9 @@ class LauncherScreen(Screen):
         self._app = app
         root = BoxLayout(orientation="vertical")
 
-        bar = BoxLayout(size_hint_y=None, height=64, padding=8, spacing=8)
-        bar.add_widget(Label(text="Gamecenter", font_size="24sp", bold=True))
-        settings = Button(text="Settings", size_hint_x=None, width=180, font_size="20sp")
+        bar = Panel(size_hint_y=None, height=72, padding=(20, 12), spacing=8)
+        bar.add_widget(Label(text="Gamecenter", font_size="26sp", bold=True, halign="left", color=theme.TEXT))
+        settings = StyledButton(text="Settings", variant="secondary", size_hint_x=None, width=180)
         settings.bind(on_release=lambda *_: self._app.goto(ScreenName.SETTINGS))
         bar.add_widget(settings)
         root.add_widget(bar)

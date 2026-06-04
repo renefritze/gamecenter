@@ -22,9 +22,10 @@ if TYPE_CHECKING:
     from gamecenter.core.events import BuzzerEvent
     from gamecenter.core.game_api import GameContext
 
-_WAIT_COLOR = (0.6, 0.1, 0.1, 1)
-_GO_COLOR = (0.1, 0.7, 0.2, 1)
-_DONE_COLOR = (0.1, 0.2, 0.4, 1)
+# Semantic full-screen states, tuned to sit alongside the app palette.
+_WAIT_COLOR = (0.690, 0.180, 0.180, 1)
+_GO_COLOR = (0.180, 0.760, 0.420, 1)
+_DONE_COLOR = (0.137, 0.161, 0.255, 1)
 
 
 class ReactionWidget(BoxLayout):
