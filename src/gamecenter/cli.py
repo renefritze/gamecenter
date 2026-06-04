@@ -48,5 +48,31 @@ def run(
     run_app(windowed=windowed, backend_override=backend, config_path=config)
 
 
+@app.command()
+def demo(
+    width: int = typer.Option(1280, "--width", help="Window width; match your screen recorder."),
+    height: int = typer.Option(720, "--height", help="Window height; match your screen recorder."),
+    backend: str = typer.Option(
+        "keyboard",
+        "--backend",
+        help="Buzzer backend for the demo; defaults to keyboard so presses can be simulated.",
+    ),
+    config: Path | None = typer.Option(
+        None,
+        "--config",
+        help="Use an alternate config file instead of the default location.",
+    ),
+    step: float = typer.Option(
+        1.5,
+        "--step",
+        help="Seconds between scripted steps; scales the tour's total duration.",
+    ),
+) -> None:
+    """Run a scripted UI tour that drives the app and exits (for screen recording)."""
+    from gamecenter.ui.demo import run_demo
+
+    run_demo(width=width, height=height, backend_override=backend, config_path=config, step=step)
+
+
 if __name__ == "__main__":  # pragma: no cover
     app()

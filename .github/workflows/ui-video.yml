@@ -1,0 +1,67 @@
+---
+name: UI video
+on:
+  workflow_dispatch:
+    inputs:
+      framerate:
+        description: Capture framerate (fps)
+        required: false
+        default: '25'
+      step:
+        description: Seconds between scripted UI steps
+        required: false
+        default: '1.5'
+jobs:
+  record:
+    runs-on: ubuntu-24.04
+    env:
+      DISPLAY: ':99'
+      # Force Mesa software rendering so Kivy gets a GL context under Xvfb.
+      LIBGL_ALWAYS_SOFTWARE: '1'
+      KIVY_NO_ARGS: '1'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6
+      - name: Install uv
+        uses: astral-sh/setup-uv@37802adc94f370d6bfd71619e3f0bf239e1f3b78  # v7
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6
+        with:
+          python-version: '3.13'
+      - name: Install dependencies
+        run: uv sync --frozen --extra ci
+      - name: Install system packages (Xvfb, ffmpeg, Mesa)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            xvfb x11-utils ffmpeg libgl1-mesa-dri libglu1-mesa libmtdev1
+      - name: Start virtual display
+        run: |
+          Xvfb :99 -screen 0 1280x720x24 +extension GLX +render -noreset &
+          # Give Xvfb a moment to come up before anything connects to it.
+          for _ in $(seq 1 30); do
+            xdpyinfo -display :99 >/dev/null 2>&1 && break
+            sleep 0.2
+          done
+      - name: Record scripted UI tour
+        # Pass inputs via env (not direct ${{ }} interpolation) to avoid shell injection.
+        env:
+          FRAMERATE: ${{ github.event.inputs.framerate }}
+          STEP: ${{ github.event.inputs.step }}
+        run: |
+          ffmpeg -y -f x11grab -video_size 1280x720 \
+            -framerate "$FRAMERATE" \
+            -i :99 -pix_fmt yuv420p ui-demo.mp4 &
+          FFMPEG_PID=$!
+          # Hard timeout safeguard in case the demo never exits on its own.
+          timeout 120 uv run gamecenter demo --backend keyboard --step "$STEP"
+          # Stop the recorder gracefully so the MP4 is finalized.
+          kill -INT "$FFMPEG_PID"
+          wait "$FFMPEG_PID" || true
+      - name: Upload video
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
+        with:
+          name: ui-demo-video
+          path: ui-demo.mp4
+          if-no-files-found: error
