@@ -1,10 +1,15 @@
 """Scripted UI tour that drives the real app for screen recording.
 
 Runs the actual Kivy event loop and steps through the screens on a timer
-(launcher -> settings -> buzzer test -> Reaction game), simulating buzzer key
-presses along the way, then stops itself. Intended to be captured with a screen
-recorder under a virtual display (see ``.github/workflows/ui-video.yml``), but
-also handy locally via ``gamecenter demo``.
+(launcher -> settings -> buzzer test -> Reaction game -> Spotify Buzzer game),
+simulating buzzer key presses along the way, then stops itself. Intended to be
+captured with a screen recorder under a virtual display (see
+``.github/workflows/ui-video.yml``), but also handy locally via
+``gamecenter demo``.
+
+The Spotify Buzzer leg runs against the in-process fake Spotify (forced via
+``GAMECENTER_FAKE_SPOTIFY``) so the tour needs no credentials, network or
+Premium account and never touches real playback.
 
 Kept out of the import path of the headless suite: Kivy is imported only when
 this module is imported, which the CLI does lazily.
@@ -13,6 +18,7 @@ this module is imported, which the CLI does lazily.
 from __future__ import annotations
 
 import logging
+import os
 from typing import TYPE_CHECKING
 
 from kivy.app import App
@@ -34,6 +40,36 @@ def _press_all_buzzers(app: GameCenterApp) -> None:
         app.buzzers.feed_key(key)
 
 
+def _press_one_buzzer(app: GameCenterApp) -> None:
+    """Fire a single buzzer (e.g. to be the one who buzzes in on a song)."""
+    for key in app.settings.config.buzzers.keymap:
+        app.buzzers.feed_key(key)
+        return
+
+
+def _active_widget(app: GameCenterApp):
+    """Return the active game's root widget, if any (demo-only introspection)."""
+    game = getattr(app, "_active_game", None)
+    return getattr(game, "_widget", None)
+
+
+def _spotify_step(app: GameCenterApp, method: str, *args, **kwargs) -> None:
+    """Invoke a Spotify Buzzer widget transition by name, if it is the active game.
+
+    The widget's phase transitions are normally driven by touch on its buttons;
+    the scripted tour can't tap them, so it calls the same handlers directly.
+    """
+    widget = _active_widget(app)
+    if widget is None:
+        msg = f"No active game widget to execute Spotify step {method!r}."
+        raise RuntimeError(msg)
+    handler = getattr(widget, method, None)
+    if handler is None:
+        msg = f"{type(widget).__name__} has no demo step {method!r}."
+        raise RuntimeError(msg)
+    handler(*args, **kwargs)
+
+
 def _build_scenario(app: GameCenterApp, step: float) -> None:
     """Schedule the timed tour. Each ``Clock`` callback ignores its dt arg."""
     # (delay-in-steps, action) pairs; actions exercise the real navigation API.
@@ -46,7 +82,18 @@ def _build_scenario(app: GameCenterApp, step: float) -> None:
         (7, lambda: _press_all_buzzers(app)),
         (8, lambda: _press_all_buzzers(app)),
         (9, app.back_to_launcher),
-        (10, _stop),
+        # Spotify Buzzer leg (in-process fake): join -> pick playlist -> play ->
+        # buzz -> flashing answer timer -> reveal & score.
+        (10, lambda: app.launch_game("spotify_buzzer")),
+        (11, lambda: _press_all_buzzers(app)),  # buzzers join as players
+        (12, lambda: _spotify_step(app, "_start_game")),  # -> pick playlist
+        (13, lambda: _spotify_step(app, "_choose_playlist", "fake-80s")),  # -> playing
+        (14, lambda: _press_one_buzzer(app)),  # someone buzzes -> answering (flashes)
+        (16, lambda: _spotify_step(app, "_reveal_now")),  # -> reveal
+        # host scores artist+title and the exact year -> between rounds (scoreboard)
+        (17, lambda: _spotify_step(app, "_confirm_score", artist_title=True, year_exact=True, year_close=False)),
+        (18, app.back_to_launcher),
+        (19, _stop),
     ]
     for steps, action in actions:
         Clock.schedule_once(lambda _dt, _a=action: _a(), steps * step)
@@ -74,6 +121,11 @@ def run_demo(
     after the config is set. The keyboard backend is forced by default so buzzer
     presses can be simulated.
     """
+    # The Spotify Buzzer leg runs against the in-process fake so the tour needs
+    # no credentials and never controls real playback. setdefault lets an
+    # explicit env value still win.
+    os.environ.setdefault("GAMECENTER_FAKE_SPOTIFY", "1")
+
     from kivy.config import Config
 
     Config.set("graphics", "width", str(width))
