@@ -60,9 +60,14 @@ def _spotify_step(app: GameCenterApp, method: str, *args, **kwargs) -> None:
     the scripted tour can't tap them, so it calls the same handlers directly.
     """
     widget = _active_widget(app)
+    if widget is None:
+        msg = f"No active game widget to execute Spotify step {method!r}."
+        raise RuntimeError(msg)
     handler = getattr(widget, method, None)
-    if callable(handler):
-        handler(*args, **kwargs)
+    if not callable(handler):
+        msg = f"{type(widget).__name__} has no callable demo step {method!r}."
+        raise RuntimeError(msg)
+    handler(*args, **kwargs)
 
 
 def _build_scenario(app: GameCenterApp, step: float) -> None:
