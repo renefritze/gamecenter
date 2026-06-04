@@ -34,6 +34,7 @@ PRIMARY_DOWN: Rgba = (0.290, 0.404, 0.870, 1)
 SUCCESS: Rgba = (0.180, 0.760, 0.420, 1)
 SUCCESS_DOWN: Rgba = (0.140, 0.640, 0.350, 1)
 DANGER: Rgba = (0.890, 0.300, 0.270, 1)
+DANGER_DOWN: Rgba = (0.750, 0.220, 0.200, 1)
 
 TEXT: Rgba = (0.960, 0.970, 1.000, 1)
 TEXT_MUTED: Rgba = (0.600, 0.640, 0.780, 1)
@@ -44,21 +45,19 @@ _VARIANTS: dict[str, tuple[Rgba, Rgba, Rgba]] = {
     "primary": (PRIMARY, PRIMARY_DOWN, ON_PRIMARY),
     "secondary": (CARD, CARD_DOWN, TEXT),
     "success": (SUCCESS, SUCCESS_DOWN, ON_PRIMARY),
-    "danger": (DANGER, PRIMARY_DOWN, ON_PRIMARY),
+    "danger": (DANGER, DANGER_DOWN, ON_PRIMARY),
 }
 
 
-def _follow(widget, color: Color, rect: RoundedRectangle) -> None:
+def _follow(widget, rect: RoundedRectangle) -> None:
     """Keep ``rect`` aligned with ``widget`` as it moves/resizes."""
 
-    def _sync(*_args) -> None:
-        rect.pos = widget.pos
-        rect.size = widget.size
+    def _sync(instance, _value) -> None:
+        rect.pos = instance.pos
+        rect.size = instance.size
 
     widget.bind(pos=_sync, size=_sync)
-    _sync()
-    # Silence "color assigned but unused" while keeping the ref alive.
-    _ = color
+    _sync(widget, None)
 
 
 class StyledButton(Button):
@@ -73,14 +72,11 @@ class StyledButton(Button):
         super().__init__(**kwargs)
         self._radius = radius
         # Hide Kivy's built-in textured background so only our rounded fill shows.
-        self.background_normal = ""
-        self.background_down = ""
-        self.background_disabled_normal = ""
         self.background_color = (0, 0, 0, 0)
         with self.canvas.before:
             self._fill = Color(*PRIMARY)
             self._rect = RoundedRectangle(pos=self.pos, size=self.size, radius=[radius])
-        _follow(self, self._fill, self._rect)
+        _follow(self, self._rect)
         self.bind(state=lambda *_: self._paint())
         self.set_variant(variant)
 
@@ -107,7 +103,7 @@ class Panel(BoxLayout):
         with self.canvas.before:
             self._bg = Color(*bg)
             self._rect = RoundedRectangle(pos=self.pos, size=self.size, radius=[radius])
-        _follow(self, self._bg, self._rect)
+        _follow(self, self._rect)
 
 
 def attach_rounded_bg(
@@ -126,7 +122,7 @@ def attach_rounded_bg(
     with widget.canvas.before:
         color = Color(*idle)
         rect = RoundedRectangle(pos=widget.pos, size=widget.size, radius=[radius])
-    _follow(widget, color, rect)
+    _follow(widget, rect)
     if down is not None and hasattr(widget, "state"):
 
         def _on_state(_w, state) -> None:
