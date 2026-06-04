@@ -5,8 +5,9 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 
 from kivy.uix.boxlayout import BoxLayout
-from kivy.uix.button import Button
 from kivy.uix.screenmanager import Screen
+
+from gamecenter.ui.theme import Panel, StyledButton
 
 if TYPE_CHECKING:
     from kivy.uix.widget import Widget
@@ -21,8 +22,8 @@ class GameHostScreen(Screen):
         super().__init__(**kwargs)
         self._app = app
         root = BoxLayout(orientation="vertical")
-        bar = BoxLayout(size_hint_y=None, height=64, padding=8, spacing=8)
-        back = Button(text="< Back", size_hint_x=None, width=160, font_size="20sp")
+        bar = Panel(size_hint_y=None, height=64, padding=8, spacing=8)
+        back = StyledButton(text="< Back", variant="secondary", size_hint_x=None, width=160)
         back.bind(on_release=lambda *_: self._app.back_to_launcher())
         bar.add_widget(back)
         root.add_widget(bar)

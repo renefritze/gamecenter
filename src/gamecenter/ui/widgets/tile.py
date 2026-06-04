@@ -8,6 +8,8 @@ from kivy.uix.behaviors import ButtonBehavior
 from kivy.uix.boxlayout import BoxLayout
 from kivy.uix.label import Label
 
+from gamecenter.ui import theme
+
 if TYPE_CHECKING:
     from collections.abc import Callable
 
@@ -15,16 +17,19 @@ if TYPE_CHECKING:
 
 
 class GameTile(ButtonBehavior, BoxLayout):
-    """A tappable tile showing a game's title and description."""
+    """A tappable card showing a game's title and description."""
 
     def __init__(self, meta: GameMeta, on_launch: Callable[[str], None], **kwargs) -> None:
-        super().__init__(orientation="vertical", padding=20, spacing=10, **kwargs)
+        super().__init__(orientation="vertical", padding=24, spacing=12, **kwargs)
         self._game_id = meta.id
         self._on_launch = on_launch
-        self.add_widget(Label(text=meta.title, font_size="32sp", bold=True))
-        self.add_widget(Label(text=meta.description, font_size="18sp", halign="center", valign="middle"))
+        theme.attach_rounded_bg(self, idle=theme.CARD, down=theme.CARD_DOWN, radius=18)
+        self.add_widget(Label(text=meta.title, font_size="32sp", bold=True, color=theme.TEXT))
+        self.add_widget(
+            Label(text=meta.description, font_size="18sp", halign="center", valign="middle", color=theme.TEXT_MUTED)
+        )
         if meta.needs_buzzers:
-            self.add_widget(Label(text="[buzzers required]", font_size="14sp", color=(0.7, 0.7, 0.7, 1)))
+            self.add_widget(Label(text="buzzers required", font_size="14sp", bold=True, color=theme.PRIMARY))
 
     def on_release(self) -> None:
         self._on_launch(self._game_id)

@@ -11,13 +11,13 @@ from dataclasses import replace
 from typing import TYPE_CHECKING
 
 from kivy.uix.boxlayout import BoxLayout
-from kivy.uix.button import Button
 from kivy.uix.gridlayout import GridLayout
 from kivy.uix.label import Label
 from kivy.uix.screenmanager import Screen
 
 from gamecenter.games.reaction.logic import resolve_player_id
-from gamecenter.ui import ScreenName
+from gamecenter.ui import ScreenName, theme
+from gamecenter.ui.theme import Panel, StyledButton
 from gamecenter.ui.widgets.buzzer_indicator import BuzzerIndicator
 
 if TYPE_CHECKING:
@@ -35,20 +35,24 @@ class BuzzerTestScreen(Screen):
         self._indicators: dict[int, BuzzerIndicator] = {}
 
         root = BoxLayout(orientation="vertical", padding=16, spacing=12)
-        bar = BoxLayout(size_hint_y=None, height=64, spacing=8)
-        back = Button(text="< Back", size_hint_x=None, width=160, font_size="20sp")
+        bar = Panel(size_hint_y=None, height=64, padding=(8, 6), spacing=12)
+        back = StyledButton(text="< Back", variant="secondary", size_hint_x=None, width=160)
         back.bind(on_release=lambda *_: self._app.goto(ScreenName.SETTINGS))
         bar.add_widget(back)
-        bar.add_widget(Label(text="Buzzer Test", font_size="24sp", bold=True))
+        bar.add_widget(Label(text="Buzzer Test", font_size="24sp", bold=True, color=theme.TEXT))
         root.add_widget(bar)
 
-        self._status = Label(text="Press any buzzer...", font_size="20sp", size_hint_y=None, height=48)
+        self._status = Label(
+            text="Press any buzzer...", font_size="20sp", color=theme.TEXT_MUTED, size_hint_y=None, height=48
+        )
         root.add_widget(self._status)
 
         self._grid = GridLayout(cols=2, spacing=12)
         root.add_widget(self._grid)
 
-        root.add_widget(Label(text="Assign last press to:", font_size="18sp", size_hint_y=None, height=40))
+        root.add_widget(
+            Label(text="Assign last press to:", font_size="18sp", color=theme.TEXT_MUTED, size_hint_y=None, height=40)
+        )
         self._assign_row = GridLayout(cols=4, size_hint_y=None, height=64, spacing=8)
         root.add_widget(self._assign_row)
 
@@ -70,7 +74,7 @@ class BuzzerTestScreen(Screen):
             indicator = BuzzerIndicator(text=f"{slot.name}{mapped}")
             self._indicators[slot.player_id] = indicator
             self._grid.add_widget(indicator)
-            assign = Button(text=slot.name, font_size="16sp")
+            assign = StyledButton(text=slot.name, variant="secondary", font_size="16sp")
             assign.bind(on_release=lambda _btn, pid=slot.player_id: self._assign(pid))
             self._assign_row.add_widget(assign)
 

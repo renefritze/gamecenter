@@ -70,7 +70,10 @@ class GameCenterApp(App):
         return manager
 
     def _configure_window(self) -> None:
+        from gamecenter.ui import theme
+
         Config.set("kivy", "exit_on_escape", "0")
+        Window.clearcolor = theme.BACKGROUND
         if self._windowed:
             Window.fullscreen = False
             Window.show_cursor = True
