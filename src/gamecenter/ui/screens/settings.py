@@ -43,7 +43,9 @@ class SettingsScreen(Screen):
             backend_row.add_widget(button)
         root.add_widget(backend_row)
 
-        self._fullscreen_button = StyledButton(text="", variant="secondary", size_hint_y=None, height=64, font_size="18sp")
+        self._fullscreen_button = StyledButton(
+            text="", variant="secondary", size_hint_y=None, height=64, font_size="18sp"
+        )
         self._fullscreen_button.bind(on_release=lambda *_: self._toggle_fullscreen())
         root.add_widget(self._fullscreen_button)
 
