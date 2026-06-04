@@ -44,13 +44,17 @@ jobs:
             sleep 0.2
           done
       - name: Record scripted UI tour
+        # Pass inputs via env (not direct ${{ }} interpolation) to avoid shell injection.
+        env:
+          FRAMERATE: ${{ github.event.inputs.framerate }}
+          STEP: ${{ github.event.inputs.step }}
         run: |
           ffmpeg -y -f x11grab -video_size 1280x720 \
-            -framerate "${{ github.event.inputs.framerate }}" \
+            -framerate "$FRAMERATE" \
             -i :99 -pix_fmt yuv420p ui-demo.mp4 &
           FFMPEG_PID=$!
           # Hard timeout safeguard in case the demo never exits on its own.
-          timeout 120 uv run gamecenter demo --backend keyboard --step "${{ github.event.inputs.step }}"
+          timeout 120 uv run gamecenter demo --backend keyboard --step "$STEP"
           # Stop the recorder gracefully so the MP4 is finalized.
           kill -INT "$FFMPEG_PID"
           wait "$FFMPEG_PID" || true
