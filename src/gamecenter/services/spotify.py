@@ -51,7 +51,7 @@ def _parse_year(release_date: str | None) -> int | None:
     ``release_date_precision``); the leading four digits are the year in every
     case. Returns ``None`` for missing or malformed values.
     """
-    if not release_date or len(release_date) < 4:
+    if not isinstance(release_date, str) or len(release_date) < 4:
         return None
     head = release_date[:4]
     return int(head) if head.isdigit() else None
@@ -71,8 +71,10 @@ def _to_track_info(item: dict[str, Any]) -> TrackInfo | None:
     uri = track.get("uri")
     if not uri or not str(uri).startswith("spotify:track:"):
         return None
-    artists = track.get("artists") or []
-    artist = artists[0].get("name", "") if artists and isinstance(artists[0], dict) else ""
+    artists = track.get("artists")
+    artist = (
+        artists[0].get("name", "") if isinstance(artists, list) and artists and isinstance(artists[0], dict) else ""
+    )
     album = track.get("album") or {}
     return TrackInfo(
         uri=str(uri),
@@ -143,11 +145,13 @@ class SpotifyService(Service):
             for item in items:
                 if not isinstance(item, dict) or not item.get("id"):
                     continue
+                tracks = item.get("tracks")
+                track_count = int(tracks.get("total", 0)) if isinstance(tracks, dict) else 0
                 playlists.append(
                     PlaylistInfo(
                         playlist_id=str(item["id"]),
                         name=str(item.get("name", "Untitled")),
-                        track_count=int((item.get("tracks") or {}).get("total", 0)),
+                        track_count=track_count,
                     )
                 )
             if len(items) < _PAGE_LIMIT:
@@ -181,11 +185,13 @@ class SpotifyService(Service):
     def active_device(self) -> str | None:
         """Return the active (or first available) Connect device id, if any."""
         client = self._require_client()
-        devices = client.devices().get("devices", [])
-        for device in devices:
+        response = client.devices()
+        devices = response.get("devices", []) if isinstance(response, dict) else []
+        candidates = [d for d in devices if isinstance(d, dict) and d.get("id")]
+        for device in candidates:
             if device.get("is_active"):
-                return str(device.get("id"))
-        return str(devices[0]["id"]) if devices else None
+                return str(device["id"])
+        return str(candidates[0]["id"]) if candidates else None
 
     def start_playback(self, uri: str, position_ms: int, device_id: str | None = None) -> None:
         """Play a single ``uri`` from ``position_ms`` on a Connect device."""

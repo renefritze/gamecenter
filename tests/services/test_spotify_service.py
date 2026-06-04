@@ -65,6 +65,8 @@ def test_partial_credentials_are_unavailable(monkeypatch):
         (None, None),
         ("abcd", None),
         ("19", None),
+        (1994, None),  # non-string input must not raise
+        (["1994"], None),
     ],
 )
 def test_parse_year(release_date, expected):
@@ -117,6 +119,12 @@ def test_to_track_info_unknown_year_is_none():
     info = _to_track_info(_item(album={"release_date": ""}))
     assert info is not None
     assert info.year is None
+
+
+def test_to_track_info_tolerates_malformed_artists():
+    info = _to_track_info(_item(artists="not-a-list"))
+    assert info is not None
+    assert info.artist == ""
 
 
 # -- active device + client guard -------------------------------------------

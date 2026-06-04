@@ -49,8 +49,10 @@ _BG_DONE = (0.137, 0.161, 0.255, 1)
 class _PlaybackAdapter:
     """Adapts the Spotify service to the logic's ``PlaybackController``.
 
-    Swallows :class:`SpotifyError` into a UI callback so a missing device or a
-    non-Premium account never crashes the (UI-thread) logic call.
+    Each call runs on a background daemon thread so a (potentially slow) Web API
+    request never blocks the Kivy UI thread, and errors are marshalled back onto
+    it via the clock - so a missing device or non-Premium account surfaces as a
+    banner instead of crashing or freezing the buzzer game.
     """
 
     def __init__(self, service, on_error) -> None:
@@ -67,13 +69,19 @@ class _PlaybackAdapter:
         self._guard(self._service.pause)
 
     def _guard(self, action) -> None:
-        try:
-            action()
-        except SpotifyError as exc:
-            self._on_error(str(exc))
-        except Exception:
-            logger.exception("Unexpected Spotify playback error")
-            self._on_error("Spotify playback failed; check the device and try again.")
+        def target() -> None:
+            try:
+                action()
+            except SpotifyError as exc:
+                message = str(exc)
+            except Exception:
+                logger.exception("Unexpected Spotify playback error")
+                message = "Spotify playback failed; check the device and try again."
+            else:
+                return
+            Clock.schedule_once(lambda _dt: self._on_error(message), 0)
+
+        threading.Thread(target=target, daemon=True).start()
 
 
 class _FakeSpotify:
@@ -153,6 +161,8 @@ class SpotifyBuzzerWidget(BoxLayout):
 
     def shutdown(self) -> None:
         self._cancel_countdown()
+        # Drop the session so any late background-load callback returns early.
+        self._session = None
 
     # -- buzzer input -------------------------------------------------------
     def handle_buzzer(self, event: BuzzerEvent) -> None:
@@ -222,21 +232,27 @@ class SpotifyBuzzerWidget(BoxLayout):
         if self._session and self._session.finish_join():
             self._render()
 
+    def _load_async(self, fetch, apply, fail_msg: str) -> None:
+        """Run a Spotify ``fetch`` off the UI thread, then ``apply`` results on it."""
+
+        def worker() -> None:
+            try:
+                result, error = fetch(), None
+            except SpotifyError as exc:
+                result, error = [], str(exc)
+            except Exception:
+                logger.exception(fail_msg)
+                result, error = [], fail_msg
+            Clock.schedule_once(lambda _dt: apply(result, error), 0)
+
+        threading.Thread(target=worker, daemon=True).start()
+
     def _render_pick_playlist(self) -> None:
         body = self._fresh_content("Loading playlists...", _BG_NEUTRAL)
         body.add_widget(Label(text="Fetching your Spotify playlists", font_size="20sp", color=theme.TEXT_MUTED))
-        threading.Thread(target=self._load_playlists, daemon=True).start()
-
-    def _load_playlists(self) -> None:
-        try:
-            playlists = self._service.list_playlists()
-            error = None
-        except SpotifyError as exc:
-            playlists, error = [], str(exc)
-        except Exception:
-            logger.exception("Failed to list playlists")
-            playlists, error = [], "Could not load playlists; check Spotify and retry."
-        Clock.schedule_once(lambda _dt: self._show_playlists(playlists, error), 0)
+        self._load_async(
+            self._service.list_playlists, self._show_playlists, "Could not load playlists; check Spotify and retry."
+        )
 
     def _show_playlists(self, playlists: list[PlaylistInfo], error: str | None) -> None:
         if self._session is None or self._session.phase is not Phase.PICK_PLAYLIST:
@@ -268,18 +284,11 @@ class SpotifyBuzzerWidget(BoxLayout):
 
     def _choose_playlist(self, playlist_id: str) -> None:
         self._fresh_content("Loading tracks...", _BG_NEUTRAL)
-        threading.Thread(target=self._load_tracks, args=(playlist_id,), daemon=True).start()
-
-    def _load_tracks(self, playlist_id: str) -> None:
-        try:
-            tracks = self._service.get_playlist_tracks(playlist_id)
-            error = None
-        except SpotifyError as exc:
-            tracks, error = [], str(exc)
-        except Exception:
-            logger.exception("Failed to load tracks")
-            tracks, error = [], "Could not load tracks; check Spotify and retry."
-        Clock.schedule_once(lambda _dt: self._apply_tracks(tracks, error), 0)
+        self._load_async(
+            lambda: self._service.get_playlist_tracks(playlist_id),
+            self._apply_tracks,
+            "Could not load tracks; check Spotify and retry.",
+        )
 
     def _apply_tracks(self, tracks: list[TrackInfo], error: str | None) -> None:
         if self._session is None or self._session.phase is not Phase.PICK_PLAYLIST:

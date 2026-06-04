@@ -18,9 +18,8 @@ os.environ.setdefault("KIVY_NO_ARGS", "1")
 pytestmark = pytest.mark.gui
 
 
-@pytest.fixture
-def widget(monkeypatch):
-    monkeypatch.setenv("GAMECENTER_FAKE_SPOTIFY", "1")
+def _build_widget():
+    """Build a SpotifyBuzzerWidget on a fresh context, or skip without a display."""
     from gamecenter.config.service import SettingsService
     from gamecenter.core.game_api import GameContext
     from gamecenter.core.registry import ServiceRegistry
@@ -37,9 +36,15 @@ def widget(monkeypatch):
             players=settings.config.players,
             on_finish=lambda _result: None,
         )
-        instance = SpotifyBuzzerWidget(context)
+        return SpotifyBuzzerWidget(context)
     except Exception as exc:  # pragma: no cover - environment without a usable window
         pytest.skip(f"No usable Kivy window provider: {exc}")
+
+
+@pytest.fixture
+def widget(monkeypatch):
+    monkeypatch.setenv("GAMECENTER_FAKE_SPOTIFY", "1")
+    instance = _build_widget()
     instance.begin()
     yield instance
     instance.shutdown()
@@ -83,24 +88,6 @@ def test_full_flow_through_widget(widget):
 
 def test_unconfigured_renders_without_service(monkeypatch):
     monkeypatch.delenv("GAMECENTER_FAKE_SPOTIFY", raising=False)
-    from gamecenter.config.service import SettingsService
-    from gamecenter.core.game_api import GameContext
-    from gamecenter.core.registry import ServiceRegistry
-    from gamecenter.games.spotify_buzzer.widget import SpotifyBuzzerWidget
-    from gamecenter.input.manager import BuzzerManager
-
-    try:
-        settings = SettingsService()
-        settings.load()
-        context = GameContext(
-            buzzers=BuzzerManager(settings.config.buzzers),
-            settings=settings,
-            services=ServiceRegistry(),
-            players=settings.config.players,
-            on_finish=lambda _result: None,
-        )
-        instance = SpotifyBuzzerWidget(context)
-    except Exception as exc:  # pragma: no cover - environment without a usable window
-        pytest.skip(f"No usable Kivy window provider: {exc}")
+    instance = _build_widget()
     instance.begin()  # no service registered -> should render the "not configured" panel
     assert instance._session is None
