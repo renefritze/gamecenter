@@ -15,9 +15,9 @@ jobs:
         runs-on: ubuntu-latest
 
         steps:
-            - uses: actions/checkout@v6
+            - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6
             - name: Set up Python
-              uses: actions/setup-python@v6
+              uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6
               with:
                   python-version: 3.x
             - name: Build dist artefacts
@@ -26,7 +26,7 @@ jobs:
                   pip install setuptools wheel build
                   python -m build --sdist --wheel --outdir dist/
             - name: Publish distribution 📦 to PyPI
-              uses: pypa/gh-action-pypi-publish@master
+              uses: pypa/gh-action-pypi-publish@c1b34028248d0c9f7d90fe29fef2122e2276ff6f  # master
               with:
                   user: __token__
                   password: ${{ secrets.PYPI_TOKEN }}
@@ -35,10 +35,10 @@ jobs:
         runs-on: ubuntu-latest
         steps:
             - name: Checkout code
-              uses: actions/checkout@v6
+              uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6
             - name: Create Release
               id: create_release
-              uses: actions/create-release@v1
+              uses: actions/create-release@0cb9c9b65d5d1901c1f53e5e66eaf4afd303e70e  # v1
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
               with:
