@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import random
 
+import pytest
+
 from gamecenter.config.models import (
     POLICY_DISQUALIFY,
     POLICY_PENALTY,
@@ -21,7 +23,7 @@ def _round(player_ids, **overrides):
 def test_arm_returns_go_time_and_enters_wait():
     rnd = _round([0])
     go_at = rnd.arm(now=100.0)
-    assert go_at == 102.0  # fixed delay range
+    assert go_at == pytest.approx(102.0)  # fixed delay range
     assert rnd.phase is Phase.WAIT
 
 

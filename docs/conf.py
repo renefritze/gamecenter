@@ -164,7 +164,6 @@ coverage_c_path = []
 coverage_c_regexes = {}
 coverage_ignore_c_items = {}
 
-# autodoc_default_flags = ['members', 'undoc-members', 'show-inheritance']
 
 # PyQt5 inventory is only used internally, actual link targets PySide2
 intersphinx_mapping = {

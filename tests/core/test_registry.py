@@ -16,9 +16,11 @@ class _FakeGame(Game):
         return None
 
     def start(self, context):
+        # No-op: registry tests don't run the game lifecycle.
         pass
 
     def stop(self):
+        # No-op: registry tests don't run the game lifecycle.
         pass
 
 

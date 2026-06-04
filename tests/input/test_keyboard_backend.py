@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from gamecenter.config.models import BuzzerConfig
 from gamecenter.core.events import ButtonKind
 from gamecenter.input.backends.keyboard import KeyboardBackend, KeyMap
@@ -14,7 +16,7 @@ def test_keymap_resolves_mapped_key():
     assert event.buzzer_index == 1
     assert event.button is ButtonKind.BUZZ
     assert event.device_id == "kbd"
-    assert event.timestamp == 5.0
+    assert event.timestamp == pytest.approx(5.0)
 
 
 def test_keymap_ignores_unmapped_key():
