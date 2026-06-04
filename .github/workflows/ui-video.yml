@@ -1,6 +1,13 @@
 ---
 name: UI video
 on:
+  push:
+    branches: [main]
+    # Only regenerate when something that can change the UI tour changes.
+    paths:
+      - src/**
+      - pyproject.toml
+      - .github/workflows/ui-video.yml
   workflow_dispatch:
     inputs:
       framerate:
@@ -11,6 +18,15 @@ on:
         description: Seconds between scripted UI steps
         required: false
         default: '1.5'
+
+# Don't let two runs race to force-push the media branch.
+concurrency:
+  group: ui-video-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
 jobs:
   record:
     runs-on: ubuntu-24.04
@@ -45,9 +61,10 @@ jobs:
           done
       - name: Record scripted UI tour
         # Pass inputs via env (not direct ${{ }} interpolation) to avoid shell injection.
+        # Fall back to defaults so the push trigger (which has no inputs) works too.
         env:
-          FRAMERATE: ${{ github.event.inputs.framerate }}
-          STEP: ${{ github.event.inputs.step }}
+          FRAMERATE: ${{ github.event.inputs.framerate || '25' }}
+          STEP: ${{ github.event.inputs.step || '1.5' }}
         run: |
           ffmpeg -y -f x11grab -video_size 1280x720 \
             -framerate "$FRAMERATE" \
@@ -58,10 +75,44 @@ jobs:
           # Stop the recorder gracefully so the MP4 is finalized.
           kill -INT "$FFMPEG_PID"
           wait "$FFMPEG_PID" || true
-      - name: Upload video
+      - name: Convert recording to an optimized GIF
+        run: |
+          # Scale down + drop the framerate so the README GIF stays a sane size,
+          # and use a per-clip palette for decent colour quality.
+          palette=/tmp/ui-demo-palette.png
+          filters='fps=12,scale=720:-1:flags=lanczos'
+          ffmpeg -y -i ui-demo.mp4 -vf "${filters},palettegen=stats_mode=diff" "$palette"
+          ffmpeg -y -i ui-demo.mp4 -i "$palette" \
+            -lavfi "${filters},paletteuse=dither=bayer:bayer_scale=5:diff_mode=rectangle" \
+            ui-demo.gif
+          ls -lh ui-demo.mp4 ui-demo.gif
+      - name: Upload artifacts
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02  # v4
         with:
           name: ui-demo-video
-          path: ui-demo.mp4
+          path: |
+            ui-demo.mp4
+            ui-demo.gif
           if-no-files-found: error
+      - name: Publish GIF to the media branch
+        # Only update the README asset for real pushes to main (and manual
+        # dispatches from main), never from forks where the token is read-only.
+        if: github.ref == 'refs/heads/main' && github.event.repository.fork == false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          # Build the branch as a single orphan commit in a scratch dir so the
+          # media branch never accumulates history (force-push keeps it at 1 commit).
+          work="$(mktemp -d)"
+          cp ui-demo.gif "$work/ui-demo.gif"
+          cd "$work"
+          git init -q
+          git checkout -q -b media
+          git add ui-demo.gif
+          git commit -q -m "Update UI demo GIF (${GITHUB_SHA})"
+          git push -q --force \
+            "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" \
+            media
