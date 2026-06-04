@@ -21,7 +21,10 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 # Built-in game modules. Each defines a single Game subclass named GAME.
-_BUILTIN_GAME_MODULES = ("gamecenter.games.reaction.game",)
+_BUILTIN_GAME_MODULES = (
+    "gamecenter.games.reaction.game",
+    "gamecenter.games.spotify_buzzer.game",
+)
 
 
 class GameRegistry:

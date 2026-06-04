@@ -21,6 +21,7 @@ from gamecenter.config.models import (
     BuzzerConfig,
     PlayerSlot,
     ReactionConfig,
+    SpotifyBuzzerConfig,
 )
 from gamecenter.paths import default_config_path
 
@@ -66,6 +67,30 @@ def _coerce_reaction(raw: Any, fallback: ReactionConfig) -> ReactionConfig:  # n
     )
 
 
+def _as(caster: Callable[[Any], Any], value: Any, fallback: Any) -> Any:  # noqa: ANN401
+    """Cast ``value`` with ``caster``, returning ``fallback`` on bad input."""
+    try:
+        return caster(value)
+    except (TypeError, ValueError):
+        return fallback
+
+
+def _coerce_spotify_buzzer(raw: Any, fallback: SpotifyBuzzerConfig) -> SpotifyBuzzerConfig:  # noqa: ANN401
+    if not isinstance(raw, dict):
+        return fallback
+    return SpotifyBuzzerConfig(
+        position_mode=str(raw.get("position_mode", fallback.position_mode)),
+        flash_timer_seconds=_as(float, raw.get("flash_timer_seconds"), fallback.flash_timer_seconds),
+        points_artist_title=_as(int, raw.get("points_artist_title"), fallback.points_artist_title),
+        points_year_exact=_as(int, raw.get("points_year_exact"), fallback.points_year_exact),
+        points_year_close=_as(int, raw.get("points_year_close"), fallback.points_year_close),
+        win_mode=str(raw.get("win_mode", fallback.win_mode)),
+        target_points=_as(int, raw.get("target_points"), fallback.target_points),
+        default_playlist_id=raw.get("default_playlist_id", fallback.default_playlist_id),
+        timer_hard_cutoff=bool(raw.get("timer_hard_cutoff", fallback.timer_hard_cutoff)),
+    )
+
+
 def config_from_dict(raw: Any) -> AppConfig:  # noqa: ANN401
     """Build an :class:`AppConfig` from arbitrary loaded data, tolerantly."""
     base = default_config()
@@ -83,6 +108,7 @@ def config_from_dict(raw: Any) -> AppConfig:  # noqa: ANN401
         buzzers=_coerce_buzzers(raw.get("buzzers"), base.buzzers),
         players=players,
         reaction=_coerce_reaction(raw.get("reaction"), base.reaction),
+        spotify_buzzer=_coerce_spotify_buzzer(raw.get("spotify_buzzer"), base.spotify_buzzer),
     )
 
 

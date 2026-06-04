@@ -44,6 +44,24 @@ def test_config_from_dict_tolerates_partial_data():
     assert config.buzzers.backend == "evdev"
     # Missing sections keep their defaults.
     assert config.reaction.min_delay == pytest.approx(2.0)
+    # The new game section also defaults when absent.
+    assert config.spotify_buzzer.flash_timer_seconds == pytest.approx(10.0)
+
+
+def test_spotify_buzzer_coercer_falls_back_on_malformed_values():
+    config = config_from_dict(
+        {
+            "spotify_buzzer": {
+                "flash_timer_seconds": "not-a-number",
+                "target_points": None,
+                "points_year_exact": 5,
+            }
+        }
+    )
+    # Bad values fall back to defaults; good values are kept.
+    assert config.spotify_buzzer.flash_timer_seconds == pytest.approx(10.0)
+    assert config.spotify_buzzer.target_points == 15
+    assert config.spotify_buzzer.points_year_exact == 5
 
 
 def test_update_notifies_observers(tmp_path):
