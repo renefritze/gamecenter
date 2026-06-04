@@ -149,8 +149,14 @@ class GameCenterApp(App):
         Window.fullscreen = "auto" if enabled else False
 
 
-def run_app(*, windowed: bool = False, backend_override: str | None = None, config_path: Path | None = None) -> None:
-    """Build services and run the Kivy app."""
+def build_app(
+    *, windowed: bool = False, backend_override: str | None = None, config_path: Path | None = None
+) -> GameCenterApp:
+    """Build the Kivy-free services and wire up a (not yet running) app.
+
+    Shared by :func:`run_app` and the scripted demo driver so both use the exact
+    same service wiring.
+    """
     settings = SettingsService(config_path)
     settings.load()
     if backend_override:
@@ -168,4 +174,9 @@ def run_app(*, windowed: bool = False, backend_override: str | None = None, conf
     registry.load_builtin()
     services = ServiceRegistry()
 
-    GameCenterApp(settings, buzzers, registry, services, windowed=windowed).run()
+    return GameCenterApp(settings, buzzers, registry, services, windowed=windowed)
+
+
+def run_app(*, windowed: bool = False, backend_override: str | None = None, config_path: Path | None = None) -> None:
+    """Build services and run the Kivy app."""
+    build_app(windowed=windowed, backend_override=backend_override, config_path=config_path).run()
