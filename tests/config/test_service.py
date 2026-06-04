@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from gamecenter.config.models import BACKEND_HIDAPI, PlayerSlot
 from gamecenter.config.service import SettingsService, config_from_dict
 
@@ -41,7 +43,7 @@ def test_config_from_dict_tolerates_partial_data():
     assert config.fullscreen is False
     assert config.buzzers.backend == "evdev"
     # Missing sections keep their defaults.
-    assert config.reaction.min_delay == 2.0
+    assert config.reaction.min_delay == pytest.approx(2.0)
 
 
 def test_update_notifies_observers(tmp_path):

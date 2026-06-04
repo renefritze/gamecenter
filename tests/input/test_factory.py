@@ -17,6 +17,7 @@ from gamecenter.input.backends.keyboard import KeyboardBackend
 
 
 def _noop(_event):
+    # Event sink: these tests only assert backend selection, not events.
     pass
 
 

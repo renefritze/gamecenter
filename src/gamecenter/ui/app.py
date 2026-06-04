@@ -8,7 +8,7 @@ imported, which the CLI does lazily.
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 
 from kivy.app import App
 from kivy.clock import Clock
@@ -137,14 +137,14 @@ class GameCenterApp(App):
         except Exception:
             logger.exception("Failed to switch to backend %s; keeping current", name)
             return
-        updated: AppConfig = replace(config, buzzers=replace(config.buzzers, backend=name))
+        updated = cast("AppConfig", replace(config, buzzers=replace(config.buzzers, backend=name)))
         self.settings.update(updated)
 
     def set_fullscreen(self, *, enabled: bool) -> None:
         """Persist and apply the fullscreen setting."""
         from dataclasses import replace
 
-        updated: AppConfig = replace(self.settings.config, fullscreen=enabled)
+        updated = cast("AppConfig", replace(self.settings.config, fullscreen=enabled))
         self.settings.update(updated)
         Window.fullscreen = "auto" if enabled else False
 
@@ -157,7 +157,7 @@ def run_app(*, windowed: bool = False, backend_override: str | None = None, conf
         from dataclasses import replace
 
         config = settings.config
-        updated: AppConfig = replace(config, buzzers=replace(config.buzzers, backend=backend_override))
+        updated = cast("AppConfig", replace(config, buzzers=replace(config.buzzers, backend=backend_override)))
         settings.update(updated)
 
     buzzers = BuzzerManager(
