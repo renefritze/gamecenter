@@ -1,6 +1,7 @@
 """Long-lived services.
 
-Future home for USB webcam and Spotify integrations as
-:class:`gamecenter.core.service_api.Service` implementations. Intentionally
-empty for now - the seam exists so they drop in without launcher/game rework.
+Home for integrations exposed to games as
+:class:`gamecenter.core.service_api.Service` implementations. Currently the
+Spotify playback/browse service (:mod:`gamecenter.services.spotify`); the seam
+lets such features drop in without launcher/game rework.
 """

@@ -9,13 +9,18 @@ select = ["ALL"]
 extend-ignore = ["E501", "ANN201", "ANN001", "D211", "D213", "COM812", "D203", "PGH004"]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**/*.py" = ["S101", "D103", "PLC0415", "SLF001", "PLR2004", "ANN", "ARG", "S311", "BLE001"]
+"tests/**/*.py" = ["S101", "D101", "D102", "D103", "D107", "PLC0415", "SLF001", "PLR2004", "ANN", "ARG", "S311", "BLE001"]
 # Kivy callbacks (on_press/on_touch_down) break N802; KV properties mix case (N815);
 # widgets take **kwargs; lazy in-method Kivy imports trip PLC0415.
 "src/gamecenter/ui/**" = ["N802", "N815", "ANN", "D101", "D102", "D107", "PLR0913", "PLC0415", "TID252", "BLE001"]
 "src/gamecenter/games/**/widget.py" = ["N802", "ANN", "D101", "D102", "D107", "PLR0913", "PLC0415"]
 "src/gamecenter/games/reaction/logic.py" = ["S311"]  # non-crypto random delay
 "src/gamecenter/games/reaction/game.py" = ["D102", "D107", "PLC0415", "ANN401"]  # lazy widget import, override methods
+"src/gamecenter/games/spotify_buzzer/logic.py" = ["S311"]  # non-crypto random track/position
+"src/gamecenter/games/spotify_buzzer/game.py" = ["D102", "D107", "PLC0415", "ANN401"]  # lazy widget import, override methods
+# The Spotify service lazily imports the optional spotipy lib and broadly guards its calls.
+# S105: env-var *names* (not secrets); PLR2004: HTTP status codes / date length are self-explanatory.
+"src/gamecenter/services/spotify.py" = ["PLC0415", "BLE001", "ANN401", "S105", "PLR2004"]
 # Backends override abstract methods (no docstring needed) and lazily import optional deps.
 "src/gamecenter/input/backends/**" = ["D102", "D107", "D401", "PLC0415", "N818"]
 "src/gamecenter/cli.py" = ["T201", "PLC0415", "B008"]  # B008: typer.Option default pattern
@@ -51,7 +56,7 @@ lint = [
   "ruff format .",
   "ruff check --fix .",
   # The hardware backends import optional, untyped libs (hidapi/evdev); the rest is type-checked.
-  "ty check src/gamecenter/core src/gamecenter/config src/gamecenter/input/manager.py src/gamecenter/input/backends/base.py src/gamecenter/input/backends/factory.py src/gamecenter/input/backends/keyboard.py src/gamecenter/games/reaction/logic.py",
+  "ty check src/gamecenter/core src/gamecenter/config src/gamecenter/input/manager.py src/gamecenter/input/backends/base.py src/gamecenter/input/backends/factory.py src/gamecenter/input/backends/keyboard.py src/gamecenter/games/reaction/logic.py src/gamecenter/games/spotify_buzzer/logic.py src/gamecenter/services/spotify_protocol.py",
 ]
 
 docs-build = "make -C docs html"
@@ -83,6 +88,9 @@ hid = ["hidapi>=0.14"]
 # Linux-only evdev input backend. Imported lazily; reports unavailable if absent.
 linux = ["evdev>=1.7 ; sys_platform == 'linux'"]
 hardware = ["gamecenter[hid]", "gamecenter[linux]"]
+# Spotify Web API playback/browse for the Spotify Buzzer game. Imported lazily;
+# the service reports unavailable if absent or if credentials are unset.
+spotify = ["spotipy>=2.24"]
 # myst current require sphinx<6
 docs = ["sphinx>=8.1.3",
     "sphinx-autoapi>=3.8.0",

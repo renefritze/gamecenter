@@ -19,8 +19,11 @@ Features
   is usable with no hardware attached).
 - **Buzzer Test screen** to identify and map each physical buzzer to a player.
 - **Reaction Test** game as the initial demo: wait for green, then race to buzz.
-- Clean extension seams (a game registry + a service registry) for future
-  features such as USB webcam and Spotify integration.
+- **Spotify Buzzer** music quiz: a random track from one of your playlists plays
+  with no metadata; players buzz in, answer aloud, the host scores via
+  checkboxes, and a wrong answer lets the others steal.
+- Clean extension seams (a game registry + a service registry); the service
+  registry now hosts the Spotify integration and is ready for more (e.g. webcam).
 
 
 Quick start
@@ -44,6 +47,48 @@ ffmpeg and uploads the resulting MP4 as a build artifact.
 On a Raspberry Pi you also need the SDL2 system libraries that Kivy depends on
 (`libsdl2`, `libsdl2-image`, `libsdl2-mixer`, `libsdl2-ttf`); see the Kivy
 installation docs for your OS image.
+
+
+Spotify Buzzer
+--------------
+
+The Spotify Buzzer game plays full tracks through the **Spotify Web API**, which
+controls playback on an active **Spotify Connect** device (e.g. the official app,
+or `raspotify`/`librespot` running on the Pi). It needs a **Spotify Premium**
+account and the optional dependency:
+
+```console
+$ pip install -e '.[dev,spotify]'
+```
+
+Register an app at the [Spotify developer dashboard](https://developer.spotify.com/dashboard)
+and export its credentials before launching (read only at runtime, never stored
+in the repo):
+
+```console
+$ export SPOTIFY_CLIENT_ID=...        # from the dashboard
+$ export SPOTIFY_CLIENT_SECRET=...
+$ export SPOTIFY_REDIRECT_URI=http://localhost:8888/callback   # must match the app's settings
+```
+
+The OAuth token is cached under the app config dir (next to `config.json`) and
+refreshed automatically. When the credentials or the `spotify` extra are
+missing, the game tile still appears but shows a "Spotify not configured" panel.
+
+The game flow: press a buzzer to **join** (each distinct buzzer becomes a
+player), pick a playlist, then per round a random track plays — first to buzz
+pauses it and gets a flashing countdown to answer; the host reveals
+artist/title/year and ticks checkboxes (year points only count alongside a
+correct artist+title). A wrong answer resumes the song so others can steal.
+Tuning lives under `spotify_buzzer` in the config file (start position, flash
+timer, point values, and infinite vs. first-to-N play).
+
+For an offline dry run without credentials or Premium, set
+`GAMECENTER_FAKE_SPOTIFY=1` to use a built-in fake playlist/playback:
+
+```console
+$ GAMECENTER_FAKE_SPOTIFY=1 gamecenter run --windowed   # keys 1-4 act as buzzers
+```
 
 
 Architecture

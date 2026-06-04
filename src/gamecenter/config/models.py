@@ -19,6 +19,17 @@ VALID_BACKENDS = (BACKEND_AUTO, BACKEND_KEYBOARD, BACKEND_HIDAPI, BACKEND_EVDEV)
 POLICY_DISQUALIFY = "disqualify"
 POLICY_PENALTY = "penalty"
 
+# Spotify Buzzer playback start positions.
+POSITION_START = "start"  # play from 0:00
+POSITION_AFTER_30S = "after_30s"  # skip the intro, play from 0:30
+POSITION_RANDOM = "random"  # a random point within the track
+VALID_POSITION_MODES = (POSITION_START, POSITION_AFTER_30S, POSITION_RANDOM)
+
+# Spotify Buzzer win modes.
+WIN_INFINITE = "infinite"  # play forever, no automatic end
+WIN_TARGET = "target"  # first player to reach target_points wins
+VALID_WIN_MODES = (WIN_INFINITE, WIN_TARGET)
+
 
 @dataclass(slots=True)
 class PlayerSlot:
@@ -69,6 +80,23 @@ class ReactionConfig:
     round_timeout: float = 5.0
 
 
+@dataclass(slots=True)
+class SpotifyBuzzerConfig:
+    """Spotify Buzzer (music quiz) game tuning."""
+
+    position_mode: str = POSITION_START
+    flash_timer_seconds: float = 10.0
+    points_artist_title: int = 1
+    points_year_exact: int = 3
+    points_year_close: int = 1
+    win_mode: str = WIN_INFINITE
+    target_points: int = 15
+    default_playlist_id: str | None = None
+    # When True, the flash timer expiring locks the answerer out (hard cutoff);
+    # when False (default) it just reveals so the host can still award points.
+    timer_hard_cutoff: bool = False
+
+
 def _default_players() -> list[PlayerSlot]:
     """Four unmapped player slots by default."""
     return [PlayerSlot(player_id=i, name=f"Player {i + 1}") for i in range(4)]
@@ -82,3 +110,4 @@ class AppConfig:
     buzzers: BuzzerConfig = field(default_factory=BuzzerConfig)
     players: list[PlayerSlot] = field(default_factory=_default_players)
     reaction: ReactionConfig = field(default_factory=ReactionConfig)
+    spotify_buzzer: SpotifyBuzzerConfig = field(default_factory=SpotifyBuzzerConfig)
