@@ -4,10 +4,7 @@ on:
   push:
     branches: [main]
     # Only regenerate when something that can change the UI tour changes.
-    paths:
-      - src/**
-      - pyproject.toml
-      - .github/workflows/ui-video.yml
+    paths: [src/**, pyproject.toml, .github/workflows/ui-video.yml]
   workflow_dispatch:
     inputs:
       framerate:
@@ -18,20 +15,17 @@ on:
         description: Seconds between scripted UI steps
         required: false
         default: '1.5'
-
 # Don't let two runs race to force-push the media branch.
 concurrency:
   group: ui-video-${{ github.ref }}
   cancel-in-progress: true
-
 permissions:
   contents: write
-
 jobs:
   record:
     runs-on: ubuntu-24.04
     env:
-      DISPLAY: ':99'
+      DISPLAY: :99
       # Force Mesa software rendering so Kivy gets a GL context under Xvfb.
       LIBGL_ALWAYS_SOFTWARE: '1'
       KIVY_NO_ARGS: '1'
@@ -101,7 +95,7 @@ jobs:
         if: github.ref == 'refs/heads/main' && github.event.repository.fork == false
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
+        run: |-
           git config --global user.name 'github-actions[bot]'
           git config --global user.email '41898282+github-actions[bot]@users.noreply.github.com'
           # Build the branch as a single orphan commit in a scratch dir so the

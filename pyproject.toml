@@ -103,6 +103,7 @@ ci = [
 dev = [
     "ty",
     "ruff",
+    "pre-commit",
     "pytest",
     "pytest-cov",
     "pytest-pycharm",

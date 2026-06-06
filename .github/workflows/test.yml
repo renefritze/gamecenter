@@ -1,13 +1,10 @@
 ---
 on:
   push:
-    branches:
-    - main
+    branches: [main]
   merge_group:
   pull_request:
-    branches:
-    - main
-
+    branches: [main]
 name: pytest
 jobs:
   py-check:
@@ -17,35 +14,34 @@ jobs:
       fail-fast: false
       matrix:
         config:
-        - {os: ubuntu-24.04, py: '3.13'}
-
+          - {os: ubuntu-24.04, py: '3.13'}
     env:
       OS: ${{ matrix.config.os }}
       PYTHON: ${{ matrix.config.py }}
     steps:
-    - name: Cancel Previous Runs
-      uses: styfle/cancel-workflow-action@d07a454dad7609a92316b57b23c9ccfd4f59af66  # 0.13.1
-      with:
-        access_token: ${{ github.token }}
-    - name: Checkout
-      uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6
-    - name: Install uv
-      uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39  # v8.2.0
-    - name: Set up Python
-      uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6
-      with:
-        python-version: ${{ matrix.config.py }}
-    - name: Install dependencies
-      run: uv sync --frozen --extra ci
-    - name: run pytest
-      run: uv run pytest
-    - name: Upload coverage
-      uses: codecov/codecov-action@e79a6962e0d4c0c17b229090214935d2e33f8354  # v6
-      with:
-        env_vars: OS,PYTHON
-        fail_ci_if_error: false
-        token: ${{ secrets.CODECOV_TOKEN }}
-    - name: build docs
-      run: |
-        uv sync --frozen --extra docs
-        uv run make -C docs html
+      - name: Cancel Previous Runs
+        uses: styfle/cancel-workflow-action@d07a454dad7609a92316b57b23c9ccfd4f59af66  # 0.13.1
+        with:
+          access_token: ${{ github.token }}
+      - name: Checkout
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10  # v6
+      - name: Install uv
+        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39  # v8.2.0
+      - name: Set up Python
+        uses: actions/setup-python@a309ff8b426b58ec0e2a45f0f869d46889d02405  # v6
+        with:
+          python-version: ${{ matrix.config.py }}
+      - name: Install dependencies
+        run: uv sync --frozen --extra ci
+      - name: run pytest
+        run: uv run pytest
+      - name: Upload coverage
+        uses: codecov/codecov-action@e79a6962e0d4c0c17b229090214935d2e33f8354  # v6
+        with:
+          env_vars: OS,PYTHON
+          fail_ci_if_error: false
+          token: ${{ secrets.CODECOV_TOKEN }}
+      - name: build docs
+        run: |-
+          uv sync --frozen --extra docs
+          uv run make -C docs html
