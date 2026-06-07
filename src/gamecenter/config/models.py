@@ -54,7 +54,7 @@ class PlayerSlot:
 
 
 def _default_keymap() -> dict[str, int]:
-    """Default keyboard fallback mapping: keys 1-4 -> buzzers 0-3."""
+    """Return the default keyboard fallback mapping: keys 1-4 -> buzzers 0-3."""
     return {"1": 0, "2": 1, "3": 2, "4": 3}
 
 
