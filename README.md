@@ -44,6 +44,13 @@ $ gamecenter run                  # kiosk: fullscreen
 CLI options: `--windowed`, `--backend {auto,keyboard,hidapi,evdev}`,
 `--config PATH`.
 
+> **evdev limitation:** The `evdev` backend currently listens to every
+> `/dev/input/event*` device, including mice and touchpads. On the Buzzer Test
+> screen, clicking a player can therefore assign the mouse to that player and
+> later mouse or touch activity may register as a buzz. Use the `hidapi`
+> backend for PlayStation Buzz! controllers, or `keyboard` (keys `1`–`4`) for
+> development testing.
+
 `gamecenter demo` runs a scripted UI tour (launcher → settings → buzzer test →
 Reaction game) that drives the app and exits on its own. It is meant to be
 screen-recorded: the **UI video** GitHub Actions workflow
@@ -57,6 +64,20 @@ single rolling commit, and should not be merged into `main`.
 On a Raspberry Pi you also need the SDL2 system libraries that Kivy depends on
 (`libsdl2`, `libsdl2-image`, `libsdl2-mixer`, `libsdl2-ttf`); see the Kivy
 installation docs for your OS image.
+
+For PlayStation Buzz! USB receivers on Linux, install a udev rule so the
+`hidapi` backend can open the receiver without running the app as root:
+
+```console
+$ sudo tee /etc/udev/rules.d/60-gamecenter-buzz.rules >/dev/null <<'EOF'
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="054c", ATTRS{idProduct}=="1000", MODE="0660", GROUP="input", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="054c", ATTRS{idProduct}=="0002", MODE="0660", GROUP="input", TAG+="uaccess"
+EOF
+$ sudo udevadm control --reload-rules
+$ sudo udevadm trigger
+```
+
+Unplug and reinsert the receiver after reloading the rules.
 
 
 Spotify Buzzer

@@ -73,11 +73,22 @@ class BuzzerManager:
     def set_backend(self, name: str) -> None:
         """Hot-swap to a different backend, restarting if currently running."""
         was_running = self._running
-        self.stop()
-        self._config.backend = name
-        self._backend = create_backend(name, self._config, self._on_backend_event)
+        new_backend = create_backend(name, self._config, self._on_backend_event)
+        old_backend = self._backend
         if was_running:
-            self.start()
+            old_backend.stop()
+            self._running = False
+        self._config.backend = name
+        self._backend = new_backend
+        if was_running:
+            try:
+                self.start()
+            except Exception:
+                new_backend.stop()
+                self._backend = old_backend
+                old_backend.start()
+                self._running = True
+                raise
 
     def list_devices(self) -> list[DeviceInfo]:
         """Devices known to the active backend."""
