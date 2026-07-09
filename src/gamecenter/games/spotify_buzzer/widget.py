@@ -119,6 +119,44 @@ class _FakeSpotify:
         logger.info("FakeSpotify resume")
 
 
+class _PlaylistScrollView(ScrollView):
+    """Scroll playlist rows without turning desktop mouse movement into drag scroll."""
+
+    @staticmethod
+    def _is_non_wheel_mouse(touch) -> bool:
+        button = getattr(touch, "button", "") or ""
+        return "button" in getattr(touch, "profile", ()) and not button.startswith("scroll")
+
+    def on_touch_down(self, touch):
+        if self._is_non_wheel_mouse(touch):
+            if not self.collide_point(*touch.pos):
+                return False
+            return self.simulate_touch_down(touch)
+        return super().on_touch_down(touch)
+
+    def on_touch_move(self, touch):
+        if self._is_non_wheel_mouse(touch):
+            if not self.collide_point(*touch.pos):
+                return False
+            touch.push()
+            touch.apply_transform_2d(self.to_local)
+            handled = super(ScrollView, self).on_touch_move(touch)
+            touch.pop()
+            return handled
+        return super().on_touch_move(touch)
+
+    def on_touch_up(self, touch):
+        if self._is_non_wheel_mouse(touch):
+            if not self.collide_point(*touch.pos):
+                return False
+            touch.push()
+            touch.apply_transform_2d(self.to_local)
+            handled = super(ScrollView, self).on_touch_up(touch)
+            touch.pop()
+            return handled
+        return super().on_touch_up(touch)
+
+
 class SpotifyBuzzerWidget(BoxLayout):
     """Renders the Spotify Buzzer session, one panel per phase."""
 
@@ -267,7 +305,7 @@ class SpotifyBuzzerWidget(BoxLayout):
         if not playlists:
             body.add_widget(Label(text="No playlists found.", font_size="20sp", color=theme.TEXT_MUTED))
             return
-        scroll = ScrollView()
+        scroll = _PlaylistScrollView(do_scroll_x=False, always_overscroll=False)
         column = BoxLayout(orientation="vertical", size_hint_y=None, spacing=8, padding=(0, 4))
         column.bind(minimum_height=column.setter("height"))
         for playlist in playlists:

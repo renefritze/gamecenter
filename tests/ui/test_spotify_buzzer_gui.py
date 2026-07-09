@@ -91,3 +91,51 @@ def test_unconfigured_renders_without_service(monkeypatch):
     instance = _build_widget()
     instance.begin()  # no service registered -> should render the "not configured" panel
     assert instance._session is None
+
+
+def test_playlist_picker_does_not_drag_scroll_on_mouse(widget):
+    from gamecenter.games.spotify_buzzer.widget import _FakeSpotify, _PlaylistScrollView
+
+    widget.handle_buzzer(_event(0))
+    widget._start_game()
+    widget._show_playlists(_FakeSpotify().list_playlists(), None)
+
+    scroll = next(child for child in widget.walk() if isinstance(child, _PlaylistScrollView))
+    assert scroll.do_scroll_x is False
+    assert scroll.always_overscroll is False
+
+    class MouseTouch:
+        profile = ("pos", "button")
+        button = "left"
+        is_mouse_scrolling = False
+        pos = (10, 10)
+        x = 10
+        y = 10
+
+        def __init__(self):
+            self.ud = {}
+            self.grab_current = None
+
+        def grab(self, widget):
+            self.grab_current = widget
+
+        def ungrab(self, widget):
+            if self.grab_current is widget:
+                self.grab_current = None
+
+        def push(self):
+            pass
+
+        def pop(self):
+            pass
+
+        def apply_transform_2d(self, _transform):
+            pass
+
+    scroll.pos = (0, 0)
+    scroll.size = (200, 200)
+    touch = MouseTouch()
+
+    scroll.on_touch_down(touch)
+
+    assert scroll._touch is None
