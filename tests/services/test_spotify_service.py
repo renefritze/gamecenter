@@ -129,8 +129,17 @@ def test_to_track_info_tolerates_malformed_artists():
 
 # -- active device + client guard -------------------------------------------
 class _FakeClient:
-    def __init__(self, devices):
+    def __init__(self, devices=None, *, configured=None, user_playlists=None):
+        self._configured = configured or {}
         self._devices = devices
+        self._user_playlists = user_playlists or []
+        self.playback_calls = []
+
+    def playlist(self, playlist_id, fields=None):
+        return self._configured[playlist_id]
+
+    def current_user_playlists(self, limit, offset):
+        return {"items": self._user_playlists[offset : offset + limit]}
 
     def devices(self):
         return {"devices": self._devices}
@@ -158,3 +167,27 @@ def test_calls_without_client_raise_spotify_error():
     service = SpotifyService()
     with pytest.raises(SpotifyError):
         service.list_playlists()
+
+
+def test_list_playlists_prepends_configured_playlists_and_dedupes():
+    service = SpotifyService(
+        configured_playlist_ids=["configured", "dupe"],
+    )
+    service._client = _FakeClient(
+        configured={
+            "configured": {"id": "configured", "name": "Configured", "tracks": {"total": 10}},
+            "dupe": {"id": "dupe", "name": "Configured Dupe", "tracks": {"total": 20}},
+        },
+        user_playlists=[
+            {"id": "dupe", "name": "User Dupe", "tracks": {"total": 21}},
+            {"id": "user", "name": "User", "tracks": {"total": 30}},
+        ],
+    )
+
+    playlists = service.list_playlists()
+
+    assert [(playlist.playlist_id, playlist.name, playlist.track_count) for playlist in playlists] == [
+        ("configured", "Configured", 10),
+        ("dupe", "Configured Dupe", 20),
+        ("user", "User", 30),
+    ]

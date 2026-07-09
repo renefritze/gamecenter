@@ -85,14 +85,29 @@ def _to_track_info(item: dict[str, Any]) -> TrackInfo | None:
     )
 
 
+def _to_playlist_info(item: dict[str, Any]) -> PlaylistInfo | None:
+    """Convert a Spotify playlist object to :class:`PlaylistInfo`."""
+    playlist_id = item.get("id")
+    if not playlist_id:
+        return None
+    tracks = item.get("tracks")
+    track_count = int(tracks.get("total", 0)) if isinstance(tracks, dict) else 0
+    return PlaylistInfo(
+        playlist_id=str(playlist_id),
+        name=str(item.get("name", "Untitled")),
+        track_count=track_count,
+    )
+
+
 class SpotifyService(Service):
     """Long-lived Spotify Web API client shared with the Spotify Buzzer game."""
 
     id: ClassVar[str] = "spotify"
 
-    def __init__(self, cache_path: Path | None = None) -> None:
+    def __init__(self, cache_path: Path | None = None, configured_playlist_ids: list[str] | None = None) -> None:
         """Create the service; ``cache_path`` overrides the token cache location."""
         self._cache_path = cache_path or (config_dir() / "spotify-token.json")
+        self._configured_playlist_ids = tuple(dict.fromkeys(pid for pid in configured_playlist_ids or [] if pid))
         self._client: Any = None
 
     @classmethod
@@ -135,25 +150,32 @@ class SpotifyService(Service):
 
     # -- browsing -----------------------------------------------------------
     def list_playlists(self) -> list[PlaylistInfo]:
-        """Return the current user's playlists (paginated)."""
+        """Return configured playlists followed by the current user's playlists."""
         client = self._require_client()
         playlists: list[PlaylistInfo] = []
+        seen: set[str] = set()
+        for playlist_id in self._configured_playlist_ids:
+            try:
+                item = client.playlist(playlist_id, fields="id,name,tracks.total")
+            except Exception:
+                logger.warning("Could not load configured Spotify playlist %s.", playlist_id, exc_info=True)
+                continue
+            if isinstance(item, dict) and (info := _to_playlist_info(item)) is not None:
+                playlists.append(info)
+                seen.add(info.playlist_id)
+
         offset = 0
         while True:
             page = client.current_user_playlists(limit=_PAGE_LIMIT, offset=offset)
             items = page.get("items", []) if isinstance(page, dict) else []
             for item in items:
-                if not isinstance(item, dict) or not item.get("id"):
+                if not isinstance(item, dict):
                     continue
-                tracks = item.get("tracks")
-                track_count = int(tracks.get("total", 0)) if isinstance(tracks, dict) else 0
-                playlists.append(
-                    PlaylistInfo(
-                        playlist_id=str(item["id"]),
-                        name=str(item.get("name", "Untitled")),
-                        track_count=track_count,
-                    )
-                )
+                info = _to_playlist_info(item)
+                if info is None or info.playlist_id in seen:
+                    continue
+                playlists.append(info)
+                seen.add(info.playlist_id)
             if len(items) < _PAGE_LIMIT:
                 break
             offset += _PAGE_LIMIT

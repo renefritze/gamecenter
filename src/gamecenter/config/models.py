@@ -92,6 +92,7 @@ class SpotifyBuzzerConfig:
     win_mode: str = WIN_INFINITE
     target_points: int = 15
     default_playlist_id: str | None = None
+    configured_playlist_ids: list[str] = field(default_factory=list)
     # When True, the flash timer expiring locks the answerer out (hard cutoff);
     # when False (default) it just reveals so the host can still award points.
     timer_hard_cutoff: bool = False

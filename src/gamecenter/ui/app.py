@@ -192,17 +192,17 @@ def build_app(
     registry = GameRegistry()
     registry.load_builtin()
     services = ServiceRegistry()
-    _register_optional_services(services)
+    _register_optional_services(services, settings.config)
 
     return GameCenterApp(settings, buzzers, registry, services, windowed=windowed)
 
 
-def _register_optional_services(services: ServiceRegistry) -> None:
+def _register_optional_services(services: ServiceRegistry, config: AppConfig) -> None:
     """Register services whose optional dependencies/credentials are present."""
     from gamecenter.services.spotify import SpotifyService
 
     if SpotifyService.is_available():
-        services.register(SpotifyService())
+        services.register(SpotifyService(configured_playlist_ids=config.spotify_buzzer.configured_playlist_ids))
     else:
         logger.info("Spotify service unavailable (missing credentials or 'spotify' extra).")
 

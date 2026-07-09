@@ -78,6 +78,7 @@ def _as(caster: Callable[[Any], Any], value: Any, fallback: Any) -> Any:  # noqa
 def _coerce_spotify_buzzer(raw: Any, fallback: SpotifyBuzzerConfig) -> SpotifyBuzzerConfig:  # noqa: ANN401
     if not isinstance(raw, dict):
         return fallback
+    configured_playlist_ids = raw.get("configured_playlist_ids")
     return SpotifyBuzzerConfig(
         position_mode=str(raw.get("position_mode", fallback.position_mode)),
         flash_timer_seconds=_as(float, raw.get("flash_timer_seconds"), fallback.flash_timer_seconds),
@@ -87,6 +88,11 @@ def _coerce_spotify_buzzer(raw: Any, fallback: SpotifyBuzzerConfig) -> SpotifyBu
         win_mode=str(raw.get("win_mode", fallback.win_mode)),
         target_points=_as(int, raw.get("target_points"), fallback.target_points),
         default_playlist_id=raw.get("default_playlist_id", fallback.default_playlist_id),
+        configured_playlist_ids=[
+            str(item) for item in configured_playlist_ids if isinstance(item, str) and item.strip()
+        ]
+        if isinstance(configured_playlist_ids, list)
+        else fallback.configured_playlist_ids,
         timer_hard_cutoff=bool(raw.get("timer_hard_cutoff", fallback.timer_hard_cutoff)),
     )
 
