@@ -44,6 +44,13 @@ $ gamecenter run                  # kiosk: fullscreen
 CLI options: `--windowed`, `--backend {auto,keyboard,hidapi,evdev}`,
 `--config PATH`.
 
+> **evdev limitation:** The `evdev` backend currently listens to every
+> `/dev/input/event*` device, including mice and touchpads. On the Buzzer Test
+> screen, clicking a player can therefore assign the mouse to that player and
+> later mouse or touch activity may register as a buzz. Use the `hidapi`
+> backend for PlayStation Buzz! controllers, or `keyboard` (keys `1`–`4`) for
+> development testing.
+
 `gamecenter demo` runs a scripted UI tour (launcher → settings → buzzer test →
 Reaction game) that drives the app and exits on its own. It is meant to be
 screen-recorded: the **UI video** GitHub Actions workflow
@@ -58,14 +65,29 @@ On a Raspberry Pi you also need the SDL2 system libraries that Kivy depends on
 (`libsdl2`, `libsdl2-image`, `libsdl2-mixer`, `libsdl2-ttf`); see the Kivy
 installation docs for your OS image.
 
+For PlayStation Buzz! USB receivers on Linux, install a udev rule so the
+`hidapi` backend can open the receiver without running the app as root:
+
+```console
+$ sudo tee /etc/udev/rules.d/60-gamecenter-buzz.rules >/dev/null <<'EOF'
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="054c", ATTRS{idProduct}=="1000", MODE="0660", GROUP="input", TAG+="uaccess"
+SUBSYSTEM=="hidraw", ATTRS{idVendor}=="054c", ATTRS{idProduct}=="0002", MODE="0660", GROUP="input", TAG+="uaccess"
+EOF
+$ sudo udevadm control --reload-rules
+$ sudo udevadm trigger
+```
+
+Unplug and reinsert the receiver after reloading the rules.
+
 
 Spotify Buzzer
 --------------
 
 The Spotify Buzzer game plays full tracks through the **Spotify Web API**, which
-controls playback on an active **Spotify Connect** device (e.g. the official app,
-or `raspotify`/`librespot` running on the Pi). It needs a **Spotify Premium**
-account and the optional dependency:
+controls playback on a Spotify playback engine. Spotify does not expose raw
+full-track audio to Python/Kivy apps, so the recommended setup is a local
+Spotify Connect player that GameCenter starts and targets by name. It needs a
+**Spotify Premium** account and the optional dependency:
 
 ```console
 $ pip install -e '.[dev,spotify]'
@@ -78,8 +100,23 @@ in the repo):
 ```console
 $ export SPOTIFY_CLIENT_ID=...        # from the dashboard
 $ export SPOTIFY_CLIENT_SECRET=...
-$ export SPOTIFY_REDIRECT_URI=http://localhost:8888/callback   # must match the app's settings
+$ export SPOTIFY_REDIRECT_URI=http://127.0.0.1:8888/callback   # must match the app's settings
 ```
+
+To make the audio come from the GameCenter machine, install a local Connect
+player:
+
+```console
+$ cargo install librespot
+```
+
+When `librespot` is on `PATH`, GameCenter starts it automatically as the Connect
+device `GameCenter`, using a private cache under the app config directory. If
+you use a different binary path, set `GAMECENTER_LIBRESPOT_BINARY`; to use a
+different device name, set `SPOTIFY_DEVICE_NAME`. For unusual audio setups, set
+`GAMECENTER_SPOTIFY_CONNECT_COMMAND` to the complete librespot command you want
+GameCenter to run. If you know the exact Connect device id, set
+`SPOTIFY_DEVICE_ID`.
 
 The OAuth token is cached under the app config dir (next to `config.json`) and
 refreshed automatically. When the credentials or the `spotify` extra are

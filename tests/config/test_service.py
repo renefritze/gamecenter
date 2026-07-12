@@ -64,6 +64,17 @@ def test_spotify_buzzer_coercer_falls_back_on_malformed_values():
     assert config.spotify_buzzer.points_year_exact == 5
 
 
+def test_spotify_buzzer_coercer_keeps_configured_playlist_ids():
+    config = config_from_dict(
+        {
+            "spotify_buzzer": {
+                "configured_playlist_ids": ["abc", "", 123, "def"],
+            }
+        }
+    )
+    assert config.spotify_buzzer.configured_playlist_ids == ["abc", "def"]
+
+
 def test_update_notifies_observers(tmp_path):
     service = SettingsService(tmp_path / "config.json")
     service.load()

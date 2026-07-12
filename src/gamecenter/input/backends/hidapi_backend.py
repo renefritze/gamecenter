@@ -40,6 +40,10 @@ _BUTTONS_PER_BUZZER = len(_BUZZ_BUTTON_ORDER)
 _READ_TIMEOUT_MS = 200
 # Button states live in the last three bytes of the report (bytes 2..4).
 _MIN_REPORT_LEN = 5
+_LINUX_UDEV_HINT = (
+    'add a udev rule such as SUBSYSTEM=="hidraw", ATTRS{idVendor}=="054c", '
+    'ATTRS{idProduct}=="1000", MODE="0660", GROUP="input", TAG+="uaccess"'
+)
 
 
 class HidApiBackend(BuzzerBackend):
@@ -61,16 +65,14 @@ class HidApiBackend(BuzzerBackend):
     def list_devices(self) -> list[DeviceInfo]:
         if not self.is_available():
             return []
-        import hid
 
         return [
             DeviceInfo(
-                device_id=str(info.get("path", b"").decode("utf-8", "replace")),
+                device_id=_decode_hid_path(info.get("path", b"")),
                 name=info.get("product_string") or "Buzz! controller",
                 buzzer_count=4,
             )
-            for info in hid.enumerate()
-            if info.get("vendor_id") == _BUZZ_VENDOR_ID and info.get("product_id") in _BUZZ_PRODUCT_IDS
+            for info in _buzz_devices()
         ]
 
     def start(self) -> None:
@@ -92,15 +94,21 @@ class HidApiBackend(BuzzerBackend):
     def _open(self):  # noqa: ANN202
         import hid
 
-        device = hid.device()
-        for product_id in _BUZZ_PRODUCT_IDS:
+        devices = _buzz_devices()
+        for info in devices:
+            device = hid.device()
             try:
-                device.open(_BUZZ_VENDOR_ID, product_id)
-            except OSError:
+                device.open_path(info["path"])
+            except OSError as exc:
+                logger.warning("Found HID buzzer %s but could not open it: %s", _device_label(info), exc)
+                device.close()
                 continue
+            product_id = int(info.get("product_id", 0))
             self._device_id = f"hid:{_BUZZ_VENDOR_ID:04x}:{product_id:04x}"
             device.set_nonblocking(False)
             return device
+        if devices:
+            logger.warning("HID buzzer receiver is visible but not readable; on Linux, %s", _LINUX_UDEV_HINT)
         return None
 
     def _run(self) -> None:
@@ -151,3 +159,25 @@ def decode_buzz_report(report: bytes) -> tuple[bool, ...]:
         return ()
     bits = report[2] | (report[3] << 8) | (report[4] << 16)
     return tuple(bool(bits & (1 << i)) for i in range(_BUTTONS_PER_BUZZER * 4))
+
+
+def _buzz_devices() -> list[dict]:
+    import hid
+
+    return [
+        info
+        for info in hid.enumerate()
+        if info.get("vendor_id") == _BUZZ_VENDOR_ID and info.get("product_id") in _BUZZ_PRODUCT_IDS
+    ]
+
+
+def _decode_hid_path(path: object) -> str:
+    if isinstance(path, bytes):
+        return path.decode("utf-8", "replace")
+    return str(path)
+
+
+def _device_label(info: dict) -> str:
+    product_id = int(info.get("product_id", 0))
+    path = _decode_hid_path(info.get("path", b""))
+    return f"054c:{product_id:04x} at {path}"

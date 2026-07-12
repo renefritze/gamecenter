@@ -13,12 +13,13 @@ from typing import TYPE_CHECKING, cast
 from kivy.app import App
 from kivy.clock import Clock
 from kivy.config import Config
-from kivy.core.window import Window
+from kivy.core.window import Keyboard, Window
 from kivy.uix.screenmanager import ScreenManager
 
 from gamecenter.config.service import SettingsService
 from gamecenter.core.game_api import GameContext, GameResult
 from gamecenter.core.registry import GameRegistry, ServiceRegistry
+from gamecenter.input.backends.base import BackendUnavailable
 from gamecenter.input.manager import BuzzerManager
 from gamecenter.ui import ScreenName
 from gamecenter.ui.screens.buzzer_test import BuzzerTestScreen
@@ -33,6 +34,10 @@ if TYPE_CHECKING:
     from gamecenter.core.game_api import Game
 
 logger = logging.getLogger(__name__)
+
+# Pressing this key toggles the mouse cursor on/off. Handy for local testing on
+# a desktop (where there's no touchscreen) without leaving kiosk mode.
+_CURSOR_TOGGLE_KEY = Keyboard.keycodes["f1"]
 
 
 class GameCenterApp(App):
@@ -89,10 +94,18 @@ class GameCenterApp(App):
         self.buzzers.stop()
         self.services.stop_all()
 
-    def _on_key_down(self, _window, _keycode, _scancode, codepoint, _modifiers) -> bool:
+    def _on_key_down(self, _window, keycode, _scancode, codepoint, _modifiers) -> bool:
+        if keycode == _CURSOR_TOGGLE_KEY:
+            self.toggle_cursor()
+            return True
         if codepoint:
             self.buzzers.feed_key(codepoint)
         return False
+
+    def toggle_cursor(self) -> None:
+        """Flip mouse-cursor visibility (F1); useful for local testing without a touchscreen."""
+        Window.show_cursor = not Window.show_cursor
+        logger.info("Mouse cursor %s", "shown" if Window.show_cursor else "hidden")
 
     # -- navigation ---------------------------------------------------------
     def goto(self, screen: ScreenName) -> None:
@@ -137,6 +150,9 @@ class GameCenterApp(App):
         config = self.settings.config
         try:
             self.buzzers.set_backend(name)
+        except BackendUnavailable as exc:
+            logger.warning("Failed to switch to backend %s; keeping current: %s", name, exc)
+            return
         except Exception:
             logger.exception("Failed to switch to backend %s; keeping current", name)
             return
@@ -176,17 +192,17 @@ def build_app(
     registry = GameRegistry()
     registry.load_builtin()
     services = ServiceRegistry()
-    _register_optional_services(services)
+    _register_optional_services(services, settings.config)
 
     return GameCenterApp(settings, buzzers, registry, services, windowed=windowed)
 
 
-def _register_optional_services(services: ServiceRegistry) -> None:
+def _register_optional_services(services: ServiceRegistry, config: AppConfig) -> None:
     """Register services whose optional dependencies/credentials are present."""
     from gamecenter.services.spotify import SpotifyService
 
     if SpotifyService.is_available():
-        services.register(SpotifyService())
+        services.register(SpotifyService(configured_playlist_ids=config.spotify_buzzer.configured_playlist_ids))
     else:
         logger.info("Spotify service unavailable (missing credentials or 'spotify' extra).")
 

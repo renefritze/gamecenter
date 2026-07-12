@@ -4,8 +4,11 @@ from __future__ import annotations
 
 import threading
 
-from gamecenter.config.models import BACKEND_KEYBOARD, BuzzerConfig
+import pytest
+
+from gamecenter.config.models import BACKEND_HIDAPI, BACKEND_KEYBOARD, BuzzerConfig
 from gamecenter.core.events import ButtonKind, BuzzerEvent
+from gamecenter.input.backends.base import BackendUnavailable
 from gamecenter.input.manager import BuzzerManager
 
 
@@ -72,4 +75,24 @@ def test_set_backend_hot_swaps():
     manager.start()
     manager.set_backend(BACKEND_KEYBOARD)
     assert manager.backend.name == BACKEND_KEYBOARD
+    manager.stop()
+
+
+def test_failed_backend_switch_keeps_current_backend_running(monkeypatch):
+    monkeypatch.setattr(
+        "gamecenter.input.backends.hidapi_backend.HidApiBackend.is_available", classmethod(lambda _cls: False)
+    )
+    config = BuzzerConfig(backend=BACKEND_KEYBOARD)
+    manager = BuzzerManager(config)
+    seen = []
+    manager.subscribe(seen.append)
+    manager.start()
+
+    with pytest.raises(BackendUnavailable):
+        manager.set_backend(BACKEND_HIDAPI)
+
+    assert manager.backend.name == BACKEND_KEYBOARD
+    assert config.backend == BACKEND_KEYBOARD
+    assert manager.feed_key("1") is True
+    assert len(seen) == 1
     manager.stop()

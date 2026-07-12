@@ -19,6 +19,9 @@ from __future__ import annotations
 import importlib.util
 import logging
 import os
+import shlex
+import shutil
+import subprocess
 from typing import TYPE_CHECKING, Any, ClassVar
 
 from gamecenter.core.service_api import Service
@@ -33,15 +36,39 @@ logger = logging.getLogger(__name__)
 ENV_CLIENT_ID = "SPOTIFY_CLIENT_ID"
 ENV_CLIENT_SECRET = "SPOTIFY_CLIENT_SECRET"
 ENV_REDIRECT_URI = "SPOTIFY_REDIRECT_URI"
+ENV_DEVICE_ID = "SPOTIFY_DEVICE_ID"
+ENV_DEVICE_NAME = "SPOTIFY_DEVICE_NAME"
+ENV_LOCAL_CONNECT_COMMAND = "GAMECENTER_SPOTIFY_CONNECT_COMMAND"
+ENV_LIBRESPOT_BINARY = "GAMECENTER_LIBRESPOT_BINARY"
+ENV_LIBRESPOT_BITRATE = "GAMECENTER_LIBRESPOT_BITRATE"
 
 # Scopes: read the user's playlists and read/control their playback.
 _SCOPE = "playlist-read-private user-modify-playback-state user-read-playback-state"
 # Spotify caps these list endpoints at 50 items per page.
 _PAGE_LIMIT = 50
+_DEFAULT_LOCAL_DEVICE_NAME = "GameCenter"
 
 
 class SpotifyError(RuntimeError):
     """An actionable Spotify failure with a user-facing message."""
+
+
+def _device_name(device: dict[str, Any]) -> str:
+    """Return a human-readable Spotify Connect device name."""
+    name = device.get("name")
+    return str(name) if name else "selected Spotify device"
+
+
+def _device_playback_problem(device: dict[str, Any] | None) -> str | None:
+    """Return a user-facing reason this Connect device is unlikely to be audible."""
+    if not isinstance(device, dict):
+        return None
+    name = _device_name(device)
+    if device.get("is_restricted"):
+        return f"Spotify device '{name}' cannot be controlled by the Web API. Pick another device and retry."
+    if device.get("volume_percent") == 0:
+        return f"Spotify device '{name}' is at 0% volume. Raise its volume and retry."
+    return None
 
 
 def _parse_year(release_date: str | None) -> int | None:
@@ -85,15 +112,32 @@ def _to_track_info(item: dict[str, Any]) -> TrackInfo | None:
     )
 
 
+def _to_playlist_info(item: dict[str, Any]) -> PlaylistInfo | None:
+    """Convert a Spotify playlist object to :class:`PlaylistInfo`."""
+    playlist_id = item.get("id")
+    if not playlist_id:
+        return None
+    tracks = item.get("tracks")
+    track_count = int(tracks.get("total", 0)) if isinstance(tracks, dict) else 0
+    return PlaylistInfo(
+        playlist_id=str(playlist_id),
+        name=str(item.get("name", "Untitled")),
+        track_count=track_count,
+    )
+
+
 class SpotifyService(Service):
     """Long-lived Spotify Web API client shared with the Spotify Buzzer game."""
 
     id: ClassVar[str] = "spotify"
 
-    def __init__(self, cache_path: Path | None = None) -> None:
+    def __init__(self, cache_path: Path | None = None, configured_playlist_ids: list[str] | None = None) -> None:
         """Create the service; ``cache_path`` overrides the token cache location."""
         self._cache_path = cache_path or (config_dir() / "spotify-token.json")
+        self._configured_playlist_ids = tuple(dict.fromkeys(pid for pid in configured_playlist_ids or [] if pid))
         self._client: Any = None
+        self._playback_device_id: str | None = None
+        self._local_connect_process: subprocess.Popen | None = None
 
     @classmethod
     def is_available(cls) -> bool:
@@ -120,13 +164,17 @@ class SpotifyService(Service):
                 open_browser=False,
             )
             self._client = spotipy.Spotify(auth_manager=auth)
+            self._start_local_connect_player()
         except Exception:
             logger.exception("Failed to start Spotify service; it will be inactive.")
+            self._stop_local_connect_player()
             self._client = None
 
     def stop(self) -> None:
         """Release the client reference."""
+        self._stop_local_connect_player()
         self._client = None
+        self._playback_device_id = None
 
     @property
     def is_started(self) -> bool:
@@ -135,25 +183,32 @@ class SpotifyService(Service):
 
     # -- browsing -----------------------------------------------------------
     def list_playlists(self) -> list[PlaylistInfo]:
-        """Return the current user's playlists (paginated)."""
+        """Return configured playlists followed by the current user's playlists."""
         client = self._require_client()
         playlists: list[PlaylistInfo] = []
+        seen: set[str] = set()
+        for playlist_id in self._configured_playlist_ids:
+            try:
+                item = client.playlist(playlist_id, fields="id,name,tracks.total")
+            except Exception:
+                logger.warning("Could not load configured Spotify playlist %s.", playlist_id, exc_info=True)
+                continue
+            if isinstance(item, dict) and (info := _to_playlist_info(item)) is not None:
+                playlists.append(info)
+                seen.add(info.playlist_id)
+
         offset = 0
         while True:
             page = client.current_user_playlists(limit=_PAGE_LIMIT, offset=offset)
             items = page.get("items", []) if isinstance(page, dict) else []
             for item in items:
-                if not isinstance(item, dict) or not item.get("id"):
+                if not isinstance(item, dict):
                     continue
-                tracks = item.get("tracks")
-                track_count = int(tracks.get("total", 0)) if isinstance(tracks, dict) else 0
-                playlists.append(
-                    PlaylistInfo(
-                        playlist_id=str(item["id"]),
-                        name=str(item.get("name", "Untitled")),
-                        track_count=track_count,
-                    )
-                )
+                info = _to_playlist_info(item)
+                if info is None or info.playlist_id in seen:
+                    continue
+                playlists.append(info)
+                seen.add(info.playlist_id)
             if len(items) < _PAGE_LIMIT:
                 break
             offset += _PAGE_LIMIT
@@ -182,37 +237,120 @@ class SpotifyService(Service):
         return tracks
 
     # -- playback -----------------------------------------------------------
-    def active_device(self) -> str | None:
-        """Return the active (or first available) Connect device id, if any."""
+    def _connect_devices(self) -> list[dict[str, Any]]:
         client = self._require_client()
         response = client.devices()
         devices = response.get("devices", []) if isinstance(response, dict) else []
-        candidates = [d for d in devices if isinstance(d, dict) and d.get("id")]
-        for device in candidates:
+        return [d for d in devices if isinstance(d, dict) and d.get("id")]
+
+    def active_device(self) -> str | None:
+        """Return the active Connect device id, if any."""
+        devices = self._connect_devices()
+        for device in devices:
             if device.get("is_active"):
                 return str(device["id"])
-        return str(candidates[0]["id"]) if candidates else None
+        return None
 
     def start_playback(self, uri: str, position_ms: int, device_id: str | None = None) -> None:
         """Play a single ``uri`` from ``position_ms`` on a Connect device."""
         client = self._require_client()
-        target = device_id or self.active_device()
-        if target is None:
-            msg = "No active Spotify device. Open Spotify on a device and press play, then retry."
+        devices = self._connect_devices()
+        target_device = self._select_playback_device(
+            devices,
+            preferred_device_id=device_id or os.environ.get(ENV_DEVICE_ID),
+            preferred_device_name=self._preferred_device_name(),
+        )
+        if target_device is None:
+            msg = self._missing_device_message()
             raise SpotifyError(msg)
+        if problem := _device_playback_problem(target_device):
+            raise SpotifyError(problem)
+        target = str(target_device["id"])
+        self._playback_device_id = target
         self._call(client.start_playback, device_id=target, uris=[uri], position_ms=position_ms)
 
     def pause(self) -> None:
         """Pause playback (ignored if nothing is playing)."""
         client = self._require_client()
-        self._call(client.pause_playback, ignore_status=(403, 404))
+        self._call(client.pause_playback, ignore_status=(403, 404), device_id=self._require_playback_device_id())
 
     def resume(self) -> None:
         """Resume the current playback."""
         client = self._require_client()
-        self._call(client.start_playback, ignore_status=(403, 404))
+        self._call(client.start_playback, ignore_status=(403, 404), device_id=self._require_playback_device_id())
 
     # -- internals ----------------------------------------------------------
+    @staticmethod
+    def _select_playback_device(
+        devices: list[dict[str, Any]],
+        preferred_device_id: str | None = None,
+        preferred_device_name: str | None = None,
+    ) -> dict[str, Any] | None:
+        if preferred_device_id:
+            return next((d for d in devices if str(d.get("id")) == preferred_device_id), None)
+        if preferred_device_name:
+            return next((d for d in devices if str(d.get("name")) == preferred_device_name), None)
+        return next((d for d in devices if d.get("is_active")), None)
+
+    def _preferred_device_name(self) -> str | None:
+        configured = os.environ.get(ENV_DEVICE_NAME)
+        if configured:
+            return configured
+        return _DEFAULT_LOCAL_DEVICE_NAME if self._local_connect_process is not None else None
+
+    def _missing_device_message(self) -> str:
+        if preferred := (os.environ.get(ENV_DEVICE_ID) or self._preferred_device_name()):
+            return (
+                f"Spotify device '{preferred}' is not available. Start the local GameCenter Spotify player and retry."
+            )
+        return "No active Spotify device. Open Spotify on the device you want to use, press play once, then retry."
+
+    def _require_playback_device_id(self) -> str:
+        if self._playback_device_id is None:
+            msg = "No GameCenter Spotify playback device has been selected yet."
+            raise SpotifyError(msg)
+        return self._playback_device_id
+
+    def _start_local_connect_player(self) -> None:
+        argv = self._local_connect_argv()
+        if not argv:
+            return
+        logger.info("Starting local Spotify Connect player: %s", argv[0])
+        self._local_connect_process = subprocess.Popen(argv)  # noqa: S603 - app-controlled argv, no shell
+
+    def _local_connect_argv(self) -> list[str] | None:
+        if command := os.environ.get(ENV_LOCAL_CONNECT_COMMAND):
+            return shlex.split(command)
+
+        binary = os.environ.get(ENV_LIBRESPOT_BINARY) or shutil.which("librespot")
+        if not binary:
+            return None
+
+        cache_path = config_dir() / "librespot"
+        cache_path.mkdir(parents=True, exist_ok=True)
+        cache_path.chmod(0o700)
+        return [
+            binary,
+            "-n",
+            os.environ.get(ENV_DEVICE_NAME) or _DEFAULT_LOCAL_DEVICE_NAME,
+            "-b",
+            os.environ.get(ENV_LIBRESPOT_BITRATE, "320"),
+            "-c",
+            str(cache_path),
+        ]
+
+    def _stop_local_connect_player(self) -> None:
+        process = self._local_connect_process
+        self._local_connect_process = None
+        if process is None or process.poll() is not None:
+            return
+        process.terminate()
+        try:
+            process.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            process.kill()
+            process.wait(timeout=5)
+
     def _require_client(self) -> Any:
         if self._client is None:
             msg = "Spotify is not configured or failed to authenticate."
