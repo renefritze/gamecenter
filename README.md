@@ -84,9 +84,10 @@ Spotify Buzzer
 --------------
 
 The Spotify Buzzer game plays full tracks through the **Spotify Web API**, which
-controls playback on an active **Spotify Connect** device (e.g. the official app,
-or `raspotify`/`librespot` running on the Pi). It needs a **Spotify Premium**
-account and the optional dependency:
+controls playback on a Spotify playback engine. Spotify does not expose raw
+full-track audio to Python/Kivy apps, so the recommended setup is a local
+Spotify Connect player that GameCenter starts and targets by name. It needs a
+**Spotify Premium** account and the optional dependency:
 
 ```console
 $ pip install -e '.[dev,spotify]'
@@ -99,8 +100,23 @@ in the repo):
 ```console
 $ export SPOTIFY_CLIENT_ID=...        # from the dashboard
 $ export SPOTIFY_CLIENT_SECRET=...
-$ export SPOTIFY_REDIRECT_URI=http://localhost:8888/callback   # must match the app's settings
+$ export SPOTIFY_REDIRECT_URI=http://127.0.0.1:8888/callback   # must match the app's settings
 ```
+
+To make the audio come from the GameCenter machine, install a local Connect
+player:
+
+```console
+$ cargo install librespot
+```
+
+When `librespot` is on `PATH`, GameCenter starts it automatically as the Connect
+device `GameCenter`, using a private cache under the app config directory. If
+you use a different binary path, set `GAMECENTER_LIBRESPOT_BINARY`; to use a
+different device name, set `SPOTIFY_DEVICE_NAME`. For unusual audio setups, set
+`GAMECENTER_SPOTIFY_CONNECT_COMMAND` to the complete librespot command you want
+GameCenter to run. If you know the exact Connect device id, set
+`SPOTIFY_DEVICE_ID`.
 
 The OAuth token is cached under the app config dir (next to `config.json`) and
 refreshed automatically. When the credentials or the `spotify` extra are

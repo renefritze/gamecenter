@@ -9,6 +9,11 @@ import pytest
 from gamecenter.services.spotify import (
     ENV_CLIENT_ID,
     ENV_CLIENT_SECRET,
+    ENV_DEVICE_ID,
+    ENV_DEVICE_NAME,
+    ENV_LIBRESPOT_BINARY,
+    ENV_LIBRESPOT_BITRATE,
+    ENV_LOCAL_CONNECT_COMMAND,
     ENV_REDIRECT_URI,
     SpotifyError,
     SpotifyService,
@@ -134,6 +139,7 @@ class _FakeClient:
         self._devices = devices
         self._user_playlists = user_playlists or []
         self.playback_calls = []
+        self.pause_calls = []
 
     def playlist(self, playlist_id, fields=None):
         return self._configured[playlist_id]
@@ -144,6 +150,12 @@ class _FakeClient:
     def devices(self):
         return {"devices": self._devices}
 
+    def start_playback(self, **kwargs):
+        self.playback_calls.append(kwargs)
+
+    def pause_playback(self, **kwargs):
+        self.pause_calls.append(kwargs)
+
 
 def test_active_device_prefers_active():
     service = SpotifyService()
@@ -151,16 +163,135 @@ def test_active_device_prefers_active():
     assert service.active_device() == "b"
 
 
-def test_active_device_falls_back_to_first():
+def test_active_device_ignores_inactive_devices():
     service = SpotifyService()
     service._client = _FakeClient([{"id": "a", "is_active": False}])
-    assert service.active_device() == "a"
+    assert service.active_device() is None
 
 
 def test_active_device_none_when_empty():
     service = SpotifyService()
     service._client = _FakeClient([])
     assert service.active_device() is None
+
+
+def test_start_playback_rejects_inactive_devices_without_preference():
+    client = _FakeClient([{"id": "a", "is_active": False, "volume_percent": 40}])
+    service = SpotifyService()
+    service._client = client
+
+    with pytest.raises(SpotifyError, match="No active Spotify device"):
+        service.start_playback("spotify:track:abc", 12_000)
+
+    assert client.playback_calls == []
+
+
+def test_start_playback_can_use_configured_device_id(monkeypatch):
+    client = _FakeClient([{"id": "a", "is_active": False, "volume_percent": 40}])
+    service = SpotifyService()
+    service._client = client
+    monkeypatch.setenv(ENV_DEVICE_ID, "a")
+
+    service.start_playback("spotify:track:abc", 12_000)
+
+    assert client.playback_calls == [{"device_id": "a", "uris": ["spotify:track:abc"], "position_ms": 12_000}]
+
+
+def test_start_playback_can_use_configured_device_name(monkeypatch):
+    client = _FakeClient(
+        [
+            {"id": "a", "name": "Living Room", "is_active": True, "volume_percent": 40},
+            {"id": "b", "name": "GameCenter", "is_active": False, "volume_percent": 40},
+        ]
+    )
+    service = SpotifyService()
+    service._client = client
+    monkeypatch.setenv(ENV_DEVICE_NAME, "GameCenter")
+
+    service.start_playback("spotify:track:abc", 12_000)
+
+    assert client.playback_calls == [{"device_id": "b", "uris": ["spotify:track:abc"], "position_ms": 12_000}]
+
+
+def test_managed_local_player_defaults_to_gamecenter_device():
+    client = _FakeClient(
+        [
+            {"id": "a", "name": "Living Room", "is_active": True, "volume_percent": 40},
+            {"id": "b", "name": "GameCenter", "is_active": False, "volume_percent": 40},
+        ]
+    )
+    service = SpotifyService()
+    service._client = client
+    service._local_connect_process = object()
+
+    service.start_playback("spotify:track:abc", 12_000)
+
+    assert client.playback_calls == [{"device_id": "b", "uris": ["spotify:track:abc"], "position_ms": 12_000}]
+
+
+def test_local_connect_argv_prefers_explicit_command(monkeypatch):
+    service = SpotifyService()
+    monkeypatch.setenv(ENV_LOCAL_CONNECT_COMMAND, "librespot --name Custom --backend alsa")
+
+    assert service._local_connect_argv() == ["librespot", "--name", "Custom", "--backend", "alsa"]
+
+
+def test_local_connect_argv_builds_librespot_command(monkeypatch, tmp_path):
+    service = SpotifyService()
+    monkeypatch.setenv("XDG_CONFIG_HOME", str(tmp_path))
+    monkeypatch.setenv(ENV_LIBRESPOT_BINARY, "/usr/bin/librespot")
+    monkeypatch.setenv(ENV_DEVICE_NAME, "GameCenter Test")
+    monkeypatch.setenv(ENV_LIBRESPOT_BITRATE, "160")
+
+    argv = service._local_connect_argv()
+
+    assert argv == [
+        "/usr/bin/librespot",
+        "-n",
+        "GameCenter Test",
+        "-b",
+        "160",
+        "-c",
+        str(tmp_path / "gamecenter" / "librespot"),
+    ]
+    assert (tmp_path / "gamecenter" / "librespot").is_dir()
+
+
+def test_pause_and_resume_use_playback_device():
+    client = _FakeClient([{"id": "a", "is_active": True, "volume_percent": 40}])
+    service = SpotifyService()
+    service._client = client
+
+    service.start_playback("spotify:track:abc", 12_000)
+    service.pause()
+    service.resume()
+
+    assert client.pause_calls == [{"device_id": "a"}]
+    assert client.playback_calls[-1] == {"device_id": "a"}
+
+
+def test_pause_requires_selected_playback_device():
+    service = SpotifyService()
+    service._client = _FakeClient([{"id": "a", "is_active": True, "volume_percent": 40}])
+
+    with pytest.raises(SpotifyError, match="No GameCenter Spotify playback device"):
+        service.pause()
+
+
+def test_start_playback_rejects_zero_volume_device():
+    service = SpotifyService()
+    service._client = _FakeClient([{"id": "a", "name": "Kitchen", "is_active": True, "volume_percent": 0}])
+
+    with pytest.raises(SpotifyError, match="0% volume"):
+        service.start_playback("spotify:track:abc", 0)
+
+
+def test_start_playback_rejects_restricted_device():
+    service = SpotifyService()
+    service._client = _FakeClient([{"id": "a", "name": "Kitchen", "is_active": True, "is_restricted": True}])
+
+    with pytest.raises(SpotifyError, match="cannot be controlled"):
+        service.start_playback("spotify:track:abc", 0)
 
 
 def test_calls_without_client_raise_spotify_error():
