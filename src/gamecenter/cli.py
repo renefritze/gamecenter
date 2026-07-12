@@ -10,6 +10,8 @@ from pathlib import Path  # noqa: TC003 - typer needs the runtime annotation
 
 import typer
 
+from gamecenter.env import load_dotenv
+
 app = typer.Typer(help="Gamecenter: a touchscreen launcher for buzzer party games.")
 
 _BACKENDS = "auto, keyboard, hidapi, evdev"
@@ -22,6 +24,7 @@ _BACKEND_HELP = f"Override the buzzer backend ({_BACKENDS})."
 def main() -> None:
     """Gamecenter command-line interface."""
     # A callback keeps ``run`` an explicit subcommand even though it is the only one.
+    load_dotenv()
 
 
 @app.command()

@@ -12,7 +12,6 @@ never imports Kivy or spotipy.
 from __future__ import annotations
 
 import logging
-import os
 import threading
 import time
 from typing import TYPE_CHECKING, ClassVar
@@ -24,6 +23,7 @@ from kivy.uix.checkbox import CheckBox
 from kivy.uix.label import Label
 from kivy.uix.scrollview import ScrollView
 
+from gamecenter.env import env_flag
 from gamecenter.games.spotify_buzzer.logic import BuzzerSession, Phase, RevealMarks
 from gamecenter.services.spotify import SpotifyError
 from gamecenter.services.spotify_protocol import PlaylistInfo, TrackInfo
@@ -182,7 +182,7 @@ class SpotifyBuzzerWidget(BoxLayout):
     # -- service wiring -----------------------------------------------------
     @staticmethod
     def _resolve_service(context: GameContext):
-        if os.environ.get(_ENV_FAKE):
+        if env_flag(_ENV_FAKE):
             logger.info("Spotify Buzzer using the in-process fake (GAMECENTER_FAKE_SPOTIFY).")
             return _FakeSpotify()
         return context.services.get("spotify")
