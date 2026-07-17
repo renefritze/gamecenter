@@ -28,6 +28,10 @@ Features
 - **Spotify Buzzer** music quiz: a random track from one of your playlists plays
   with no metadata; players buzz in, answer aloud, the host scores via
   checkboxes, and a wrong answer lets the others steal.
+- **Trivia Quiz**: buzz-in trivia with questions fetched from the Open Trivia
+  Database or The Trivia API — or from your own custom question sets in the
+  config. A buzz starts a configurable countdown, then the answer is revealed
+  and the host judges correct yes/no; scores are tracked per player.
 - Clean extension seams (a game registry + a service registry); the service
   registry now hosts the Spotify integration and is ready for more (e.g. webcam).
 
@@ -136,6 +140,63 @@ For an offline dry run without credentials or Premium, set
 ```console
 $ GAMECENTER_FAKE_SPOTIFY=1 gamecenter run --windowed   # keys 1-4 act as buzzers
 ```
+
+
+Trivia Quiz
+-----------
+
+The Trivia Quiz game needs no credentials and no extra dependencies. Press a
+buzzer to **join** (each distinct buzzer becomes a player), then the host picks
+a question set:
+
+- **Open Trivia Database** (<https://opentdb.com>) — free, no API key.
+- **The Trivia API** (<https://the-trivia-api.com>) — free for non-commercial
+  use, no API key.
+- **Your own custom sets**, configured under `quiz.custom_sets` (see below).
+
+Per question: first to buzz gets a flashing countdown
+(`quiz.answer_timeout_seconds`, default 10s) to answer aloud; when it expires
+(or the host taps *Show answer now*) the answer is revealed and the host judges
+**Correct** / **Wrong**. Correct awards `quiz.points_correct` (default 1);
+wrong adds `quiz.points_wrong` (default 0 — set it to `-1` for a penalty). If
+nobody buzzes, *Nobody knows — show answer* reveals and moves on unscored. The
+game ends after `quiz.questions_per_game` questions and shows the winner(s).
+
+Tuning lives under `quiz` in the config file:
+
+```json
+{
+  "quiz": {
+    "questions_per_game": 10,
+    "answer_timeout_seconds": 10.0,
+    "points_correct": 1,
+    "points_wrong": 0,
+    "opentdb_category": null,
+    "difficulty": null,
+    "custom_sets": [
+      {
+        "name": "Family quiz",
+        "questions": [
+          { "question": "What color is the sky?", "answer": "Blue" }
+        ]
+      },
+      {
+        "name": "Movie night",
+        "path": "~/quiz-sets/movies.json"
+      }
+    ]
+  }
+}
+```
+
+`opentdb_category` is a numeric Open Trivia Database category id (see
+<https://opentdb.com/api_config.php>); `difficulty` is `easy`, `medium` or
+`hard` (or `null` for mixed) and applies to both online sources. Each custom
+set appears alongside the online sources on the in-game picker; a set can hold
+inline `questions`, point at a JSON file via `path`, or both (they are merged).
+The file format is a list of `{"question": ..., "answer": ...}` objects
+(optionally wrapped as `{"questions": [...]}`, with an optional `"category"`
+per question).
 
 
 Architecture

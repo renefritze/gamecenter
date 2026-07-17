@@ -35,6 +35,7 @@ def test_load_builtin_includes_reaction():
     registry.load_builtin()
     ids = {meta.id for meta in registry.all()}
     assert "reaction" in ids
+    assert "quiz" in ids
 
 
 def test_all_is_sorted_by_title():

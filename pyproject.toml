@@ -18,6 +18,8 @@ extend-ignore = ["E501", "ANN201", "ANN001", "D211", "D213", "COM812", "D203", "
 "src/gamecenter/games/reaction/game.py" = ["D102", "D107", "PLC0415", "ANN401"]  # lazy widget import, override methods
 "src/gamecenter/games/spotify_buzzer/logic.py" = ["S311"]  # non-crypto random track/position
 "src/gamecenter/games/spotify_buzzer/game.py" = ["D102", "D107", "PLC0415", "ANN401"]  # lazy widget import, override methods
+"src/gamecenter/games/quiz/logic.py" = ["S311"]  # non-crypto question shuffle
+"src/gamecenter/games/quiz/game.py" = ["D102", "D107", "PLC0415", "ANN401"]  # lazy widget import, override methods
 # The Spotify service lazily imports the optional spotipy lib and broadly guards its calls.
 # S105: env-var *names* (not secrets); PLR2004: HTTP status codes / date length are self-explanatory.
 "src/gamecenter/services/spotify.py" = ["PLC0415", "BLE001", "ANN401", "S105", "PLR2004"]
@@ -56,7 +58,7 @@ lint = [
   "ruff format .",
   "ruff check --fix .",
   # The hardware backends import optional, untyped libs (hidapi/evdev); the rest is type-checked.
-  "ty check src/gamecenter/core src/gamecenter/config src/gamecenter/input/manager.py src/gamecenter/input/backends/base.py src/gamecenter/input/backends/factory.py src/gamecenter/input/backends/keyboard.py src/gamecenter/games/reaction/logic.py src/gamecenter/games/spotify_buzzer/logic.py src/gamecenter/services/spotify_protocol.py",
+  "ty check src/gamecenter/core src/gamecenter/config src/gamecenter/input/manager.py src/gamecenter/input/backends/base.py src/gamecenter/input/backends/factory.py src/gamecenter/input/backends/keyboard.py src/gamecenter/games/reaction/logic.py src/gamecenter/games/spotify_buzzer/logic.py src/gamecenter/games/quiz/logic.py src/gamecenter/games/quiz/sources.py src/gamecenter/services/spotify_protocol.py",
 ]
 
 docs-build = "make -C docs html"

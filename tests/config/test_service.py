@@ -75,6 +75,67 @@ def test_spotify_buzzer_coercer_keeps_configured_playlist_ids():
     assert config.spotify_buzzer.configured_playlist_ids == ["abc", "def"]
 
 
+def test_quiz_coercer_defaults_and_keeps_good_values():
+    config = config_from_dict(
+        {
+            "quiz": {
+                "answer_timeout_seconds": "not-a-number",
+                "questions_per_game": 20,
+                "points_wrong": -1,
+                "difficulty": "hard",
+            }
+        }
+    )
+    assert config.quiz.answer_timeout_seconds == pytest.approx(10.0)
+    assert config.quiz.questions_per_game == 20
+    assert config.quiz.points_wrong == -1
+    assert config.quiz.difficulty == "hard"
+    assert config.quiz.opentdb_category is None
+
+
+def test_quiz_coercer_reads_custom_sets():
+    config = config_from_dict(
+        {
+            "quiz": {
+                "custom_sets": [
+                    {
+                        "name": "Family quiz",
+                        "path": "/home/me/questions.json",
+                        "questions": [
+                            {"question": "Q?", "answer": "A"},
+                            {"question": "", "answer": "dropped"},
+                            "not-a-dict",
+                        ],
+                    },
+                    {"name": ""},  # unnamed sets are dropped
+                    "garbage",
+                ]
+            }
+        }
+    )
+    assert len(config.quiz.custom_sets) == 1
+    custom = config.quiz.custom_sets[0]
+    assert custom.name == "Family quiz"
+    assert custom.path == "/home/me/questions.json"
+    assert [(q.question, q.answer) for q in custom.questions] == [("Q?", "A")]
+
+
+def test_quiz_custom_sets_round_trip(tmp_path):
+    from gamecenter.config.models import QuizCustomSet, QuizQuestionEntry
+
+    path = tmp_path / "config.json"
+    service = SettingsService(path)
+    service.load()
+    service.config.quiz.custom_sets = [
+        QuizCustomSet(name="Mine", questions=[QuizQuestionEntry(question="Q?", answer="A")])
+    ]
+    service.save()
+
+    reloaded = SettingsService(path).load()
+    assert reloaded.quiz.custom_sets[0].name == "Mine"
+    assert reloaded.quiz.custom_sets[0].questions[0].answer == "A"
+
+
 def test_update_notifies_observers(tmp_path):
     service = SettingsService(tmp_path / "config.json")
     service.load()
