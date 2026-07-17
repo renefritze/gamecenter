@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 
 # Built-in game modules. Each defines a single Game subclass named GAME.
 _BUILTIN_GAME_MODULES = (
+    "gamecenter.games.quiz.game",
     "gamecenter.games.reaction.game",
     "gamecenter.games.spotify_buzzer.game",
 )

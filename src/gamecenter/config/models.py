@@ -30,6 +30,9 @@ WIN_INFINITE = "infinite"  # play forever, no automatic end
 WIN_TARGET = "target"  # first player to reach target_points wins
 VALID_WIN_MODES = (WIN_INFINITE, WIN_TARGET)
 
+# Quiz difficulties accepted by both online question sources.
+VALID_QUIZ_DIFFICULTIES = ("easy", "medium", "hard")
+
 
 @dataclass(slots=True)
 class PlayerSlot:
@@ -98,6 +101,46 @@ class SpotifyBuzzerConfig:
     timer_hard_cutoff: bool = False
 
 
+@dataclass(slots=True)
+class QuizQuestionEntry:
+    """One hand-written question in a custom quiz set."""
+
+    question: str
+    answer: str
+
+
+@dataclass(slots=True)
+class QuizCustomSet:
+    """A user-provided question set for the Quiz game.
+
+    Questions can be written inline (``questions``) and/or loaded from a JSON
+    file at ``path`` (a list of ``{"question": ..., "answer": ...}`` objects,
+    optionally wrapped as ``{"questions": [...]}``). Both are merged.
+    """
+
+    name: str
+    path: str | None = None
+    questions: list[QuizQuestionEntry] = field(default_factory=list)
+
+
+@dataclass(slots=True)
+class QuizConfig:
+    """Trivia Quiz game tuning."""
+
+    questions_per_game: int = 10
+    # Seconds between a buzz and the automatic answer reveal.
+    answer_timeout_seconds: float = 10.0
+    points_correct: int = 1
+    # Added on a wrong answer (use a negative value for a penalty).
+    points_wrong: int = 0
+    # Open Trivia Database numeric category id (https://opentdb.com/api_config.php).
+    opentdb_category: int | None = None
+    # One of VALID_QUIZ_DIFFICULTIES, or None for mixed difficulty.
+    difficulty: str | None = None
+    # Your own question sets; each appears alongside the online sources in-game.
+    custom_sets: list[QuizCustomSet] = field(default_factory=list)
+
+
 def _default_players() -> list[PlayerSlot]:
     """Four unmapped player slots by default."""
     return [PlayerSlot(player_id=i, name=f"Player {i + 1}") for i in range(4)]
@@ -112,3 +155,4 @@ class AppConfig:
     players: list[PlayerSlot] = field(default_factory=_default_players)
     reaction: ReactionConfig = field(default_factory=ReactionConfig)
     spotify_buzzer: SpotifyBuzzerConfig = field(default_factory=SpotifyBuzzerConfig)
+    quiz: QuizConfig = field(default_factory=QuizConfig)

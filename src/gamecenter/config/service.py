@@ -20,6 +20,9 @@ from gamecenter.config.models import (
     AppConfig,
     BuzzerConfig,
     PlayerSlot,
+    QuizConfig,
+    QuizCustomSet,
+    QuizQuestionEntry,
     ReactionConfig,
     SpotifyBuzzerConfig,
 )
@@ -97,6 +100,51 @@ def _coerce_spotify_buzzer(raw: Any, fallback: SpotifyBuzzerConfig) -> SpotifyBu
     )
 
 
+def _coerce_quiz_set(raw: Any) -> QuizCustomSet | None:  # noqa: ANN401
+    """Build one custom quiz set, dropping it entirely if it has no usable name."""
+    if not isinstance(raw, dict):
+        return None
+    name = str(raw.get("name", "")).strip()
+    if not name:
+        return None
+    questions = []
+    questions_raw = raw.get("questions")
+    for item in questions_raw if isinstance(questions_raw, list) else []:
+        if not isinstance(item, dict):
+            continue
+        question = str(item.get("question", "")).strip()
+        answer = str(item.get("answer", "")).strip()
+        if question and answer:
+            questions.append(QuizQuestionEntry(question=question, answer=answer))
+    path = raw.get("path")
+    return QuizCustomSet(
+        name=name,
+        path=path if isinstance(path, str) and path.strip() else None,
+        questions=questions,
+    )
+
+
+def _coerce_quiz(raw: Any, fallback: QuizConfig) -> QuizConfig:  # noqa: ANN401
+    if not isinstance(raw, dict):
+        return fallback
+    custom_raw = raw.get("custom_sets")
+    if isinstance(custom_raw, list):
+        custom_sets = [s for s in map(_coerce_quiz_set, custom_raw) if s is not None]
+    else:
+        custom_sets = fallback.custom_sets
+    category = raw.get("opentdb_category", fallback.opentdb_category)
+    difficulty = raw.get("difficulty", fallback.difficulty)
+    return QuizConfig(
+        questions_per_game=_as(int, raw.get("questions_per_game"), fallback.questions_per_game),
+        answer_timeout_seconds=_as(float, raw.get("answer_timeout_seconds"), fallback.answer_timeout_seconds),
+        points_correct=_as(int, raw.get("points_correct"), fallback.points_correct),
+        points_wrong=_as(int, raw.get("points_wrong"), fallback.points_wrong),
+        opentdb_category=None if category is None else _as(int, category, fallback.opentdb_category),
+        difficulty=difficulty if isinstance(difficulty, str) and difficulty.strip() else None,
+        custom_sets=custom_sets,
+    )
+
+
 def config_from_dict(raw: Any) -> AppConfig:  # noqa: ANN401
     """Build an :class:`AppConfig` from arbitrary loaded data, tolerantly."""
     base = default_config()
@@ -115,6 +163,7 @@ def config_from_dict(raw: Any) -> AppConfig:  # noqa: ANN401
         players=players,
         reaction=_coerce_reaction(raw.get("reaction"), base.reaction),
         spotify_buzzer=_coerce_spotify_buzzer(raw.get("spotify_buzzer"), base.spotify_buzzer),
+        quiz=_coerce_quiz(raw.get("quiz"), base.quiz),
     )
 
 
